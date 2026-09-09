@@ -11,9 +11,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.clearIngresosController = exports.deleteIngresoController = exports.updateIngresoController = exports.createIngreso = exports.getIngresos = void 0;
 const ingresos_service_1 = require("../services/ingresos.service");
-const getIngresos = (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const getIngresos = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
-        const data = yield (0, ingresos_service_1.getAllIngresos)();
+        if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.id))
+            return res.status(401).json({ message: 'Usuario no autenticado' });
+        const data = yield (0, ingresos_service_1.getAllIngresos)(Number(req.user.id));
         return res.status(200).json(data);
     }
     catch (error) {
@@ -23,8 +26,11 @@ const getIngresos = (_req, res) => __awaiter(void 0, void 0, void 0, function* (
 });
 exports.getIngresos = getIngresos;
 const createIngreso = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
-        const nuevoIngreso = yield (0, ingresos_service_1.saveIngreso)(req.body);
+        if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.id))
+            return res.status(401).json({ message: 'Usuario no autenticado' });
+        const nuevoIngreso = yield (0, ingresos_service_1.saveIngreso)(Number(req.user.id), req.body);
         return res.status(201).json({ message: 'Ingreso guardado con éxito', data: nuevoIngreso });
     }
     catch (error) {
@@ -37,9 +43,12 @@ const createIngreso = (req, res) => __awaiter(void 0, void 0, void 0, function* 
 });
 exports.createIngreso = createIngreso;
 const updateIngresoController = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
+        if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.id))
+            return res.status(401).json({ message: 'Usuario no autenticado' });
         const id = Number(req.params.id);
-        const ingresoActualizado = yield (0, ingresos_service_1.updateIngreso)(id, req.body);
+        const ingresoActualizado = yield (0, ingresos_service_1.updateIngreso)(Number(req.user.id), id, req.body);
         return res.status(200).json({ message: 'Ingreso actualizado', data: ingresoActualizado });
     }
     catch (error) {
@@ -52,9 +61,12 @@ const updateIngresoController = (req, res) => __awaiter(void 0, void 0, void 0, 
 });
 exports.updateIngresoController = updateIngresoController;
 const deleteIngresoController = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
+        if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.id))
+            return res.status(401).json({ message: 'Usuario no autenticado' });
         const id = Number(req.params.id);
-        const result = yield (0, ingresos_service_1.deleteIngreso)(id);
+        const result = yield (0, ingresos_service_1.deleteIngreso)(Number(req.user.id), id);
         return res.status(200).json({ message: 'Ingreso eliminado', data: result });
     }
     catch (error) {
@@ -66,9 +78,12 @@ const deleteIngresoController = (req, res) => __awaiter(void 0, void 0, void 0, 
     }
 });
 exports.deleteIngresoController = deleteIngresoController;
-const clearIngresosController = (_req, res) => __awaiter(void 0, void 0, void 0, function* () {
+const clearIngresosController = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
-        const result = yield (0, ingresos_service_1.clearIngresos)();
+        if (!((_a = req.user) === null || _a === void 0 ? void 0 : _a.id))
+            return res.status(401).json({ message: 'Usuario no autenticado' });
+        const result = yield (0, ingresos_service_1.clearIngresos)(Number(req.user.id));
         return res.status(200).json({ message: 'Ingresos eliminados al cerrar sesión', data: result });
     }
     catch (error) {

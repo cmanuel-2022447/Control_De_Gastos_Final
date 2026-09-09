@@ -19,6 +19,10 @@ export interface AuthTokenPayload extends JwtPayload {
     usuario: string;
     email: string;
     rol: 'ADMIN' | 'USUARIO';
+    nombre?: string;
+    apellido?: string;
+    genero?: string;
+    sessionVersion: number;
 }
 
 export function generateToken(payload: Omit<AuthTokenPayload, 'iat' | 'exp'>): string {

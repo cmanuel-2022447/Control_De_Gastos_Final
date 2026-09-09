@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const errorHandles_1 = require("../../../middleware/errorHandles");
+const events_controller_1 = require("../controller/events.controller");
+const router = (0, express_1.Router)();
+router.use(errorHandles_1.authenticateToken);
+router.get('/', events_controller_1.listEvents);
+router.post('/', events_controller_1.saveEvent);
+router.put('/:id', events_controller_1.editEvent);
+router.delete('/:id', events_controller_1.removeEvent);
+exports.default = router;

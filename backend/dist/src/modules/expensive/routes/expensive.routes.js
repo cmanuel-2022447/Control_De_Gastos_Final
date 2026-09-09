@@ -9,4 +9,6 @@ router.use(errorHandles_1.authenticateToken);
 router.get('/', expensive_controller_1.getExpenses);
 // Endpoint para crear nuevo gasto
 router.post('/', expensive_controller_1.createExpense);
+router.put('/:id', expensive_controller_1.editExpense);
+router.delete('/:id', expensive_controller_1.removeExpense);
 exports.default = router;
