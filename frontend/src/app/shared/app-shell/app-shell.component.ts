@@ -157,12 +157,18 @@ export class AppShellComponent implements OnInit, OnDestroy {
 
   get fotoPerfil(): string | null {
     if (this.perfilCargando || !this.perfilActual) return null;
+
+    const fotoUrl = this.perfilActual.foto_url?.trim() || null;
+    if (this.perfilActual.auth_provider === 'GOOGLE' && fotoUrl) {
+      return fotoUrl;
+    }
+
     const rol = String(this.perfilActual.rol || 'USUARIO').toUpperCase();
     const genero = this.perfilActual.genero || null;
     const perfilBase = {
       rol,
       genero,
-      foto_url: this.fotoPerfilConError ? null : this.perfilActual.foto_url,
+      foto_url: this.fotoPerfilConError ? null : fotoUrl,
       auth_provider: this.perfilActual.auth_provider
     };
 
