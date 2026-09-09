@@ -51,7 +51,9 @@ export class PerfilService {
 
   resolverAvatar(perfil: Pick<PerfilData, 'rol' | 'foto_url' | 'genero' | 'auth_provider'> | null): string | null {
     if (!perfil) return null;
-    if (perfil.foto_url) return perfil.foto_url;
+    const fotoUrl = perfil.foto_url?.trim();
+    if (perfil.auth_provider === 'GOOGLE' && fotoUrl) return fotoUrl;
+    if (fotoUrl) return fotoUrl;
     if (perfil.rol.toUpperCase() === 'ADMIN') return 'assets/img/Admin.png';
     if (perfil.genero === 'FEMENINO') return 'assets/img/Mujer.png';
     if (perfil.genero === 'MASCULINO') return 'assets/img/Hombre.png';
