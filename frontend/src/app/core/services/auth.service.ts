@@ -391,7 +391,7 @@ export class AuthService {
     localStorage.removeItem('token');
     localStorage.removeItem('rol');
     localStorage.removeItem('perfilRegistro');
-    this.perfilService.limpiarEstado();
+    this.perfilService.limpiarEstado(false);
     this.sessionSubject.next(null);
   }
 
