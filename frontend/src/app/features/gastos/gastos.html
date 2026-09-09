@@ -1,1 +1,45 @@
-<p>gastos works!</p>
+<app-shell #shell activePage="gastos">
+	<section class="content gastos-content" [class.dark-mode]="shell.modoOscuro">
+		<div class="income-page-header">
+			<div><span class="eyebrow gastos-page-eyebrow">CONTROL MENSUAL</span><h1 id="gastos-header">Gastos</h1><p>Registra y clasifica tus gastos para mantener una visión clara.</p></div>
+			<button class="primary-action add-income-button" type="button" (click)="abrirFormulario()"><span aria-hidden="true">＋</span> Agregar nuevo gasto</button>
+		</div>
+		<div class="income-summary" id="resumen-gastos">
+			<article><span>Total gastado</span><strong>Q {{ totalGastado | number:'1.2-2' }}</strong><small>Suma real de los gastos</small></article>
+			<article><span>Total de deuda</span><strong>Q {{ totalDeuda | number:'1.2-2' }}</strong><small>Deudas registradas</small></article>
+			<article><span>Registros</span><strong>{{ gastos.length }}</strong><small>Gastos guardados</small></article>
+		</div>
+		<section class="income-table-card" id="historial-gastos">
+			<div class="table-toolbar"><div><h2>Historial de gastos</h2><p>Consulta tus gastos, deudas y acciones disponibles.</p></div></div>
+			<div class="table-scroll"><table>
+				<thead><tr><th>Fecha</th><th>Nombre</th><th>Lugar</th><th>Categoría</th><th>Tipo</th><th>Monto</th><th>Acciones</th></tr></thead>
+				<tbody>
+					<tr *ngFor="let gasto of gastos" [id]="'gasto-row-' + gasto.id">
+						<td>{{ gasto.fecha | date:'dd/MM/yyyy' }}</td><td><strong>{{ gasto.descripcion }}</strong></td><td>{{ gasto.lugar || '—' }}</td><td>{{ gasto.categoria }}</td>
+						<td><span class="currency-badge" [class.usd]="gasto.categoria === 'Deuda'">{{ etiquetaTipo(gasto.tipo) }}</span></td>
+						<td class="converted">{{ gasto.moneda }} {{ gasto.monto | number:'1.2-2' }}</td>
+						<td class="row-actions"><button type="button" (click)="editar(gasto)" aria-label="Editar gasto">Editar</button><button type="button" (click)="eliminar(gasto.id)" aria-label="Eliminar gasto">Eliminar</button></td>
+					</tr>
+					<tr *ngIf="!gastos.length"><td class="empty-row" colspan="7">Aún no hay gastos registrados.</td></tr>
+				</tbody>
+			</table></div>
+		</section>
+		<p *ngIf="successMessage" class="save-notification" role="status">{{ successMessage }}</p>
+		<p *ngIf="errorMessage" class="form-error">{{ errorMessage }}</p>
+		<div *ngIf="mostrarFormulario" class="income-modal-backdrop" (click)="cerrarFormulario()">
+			<section class="income-modal" role="dialog" aria-modal="true" aria-labelledby="expense-form-title" (click)="$event.stopPropagation()">
+				<div class="modal-heading"><div><span class="eyebrow movement-modal-eyebrow">NUEVO MOVIMIENTO</span><h2 id="expense-form-title">{{ editandoId === null ? 'Agregar gasto' : 'Editar gasto' }}</h2></div><button type="button" (click)="cerrarFormulario()" aria-label="Cerrar formulario">×</button></div>
+				<form (ngSubmit)="guardar()">
+					<div class="date-field-row"><label>Fecha<input type="date" [(ngModel)]="formulario.fecha" name="fecha" required /></label></div>
+					<div class="conversion-pairs"><label>Categoría<select [(ngModel)]="formulario.categoria" name="categoria" (ngModelChange)="cambioCategoria($event)" required><option value="">Selecciona</option><option *ngFor="let categoria of categorias" [value]="categoria">{{ categoria }}</option></select></label><label>Tipo<select [(ngModel)]="formulario.tipo" name="tipo" required><option value="FIJO">Fijo</option><option value="VARIABLE">Variable</option></select></label></div>
+					<label>Nombre<input type="text" appStrictInput="text" [(ngModel)]="formulario.descripcion" name="descripcion" placeholder="Ej. Compra del supermercado" pattern="[A-Za-zÁÉÍÓÚáéíóúÑñÜü0-9 .,:'()/&-]+" maxlength="255" required /></label>
+					<label>Lugar<input type="text" appStrictInput="text" [(ngModel)]="formulario.lugar" name="lugar" placeholder="Ej. Supermercado o casa" pattern="[A-Za-zÁÉÍÓÚáéíóúÑñÜü0-9 .,:'()/&-]+" maxlength="255" /></label>
+					<label *ngIf="formulario.categoria === 'Deuda'">Total de deuda<input type="number" appStrictInput="decimal" min="0" step="0.01" [(ngModel)]="formulario.total_deuda" name="total_deuda" placeholder="Ej. 1000.00" /></label>
+					<div class="amount-field-row"><label class="amount-label">{{ formulario.categoria === 'Deuda' ? 'Pago' : 'Cantidad' }}<div class="input-with-unit"><input type="number" appStrictInput="decimal" inputmode="decimal" min="0.01" step="0.01" [(ngModel)]="formulario.monto" name="monto" placeholder="Ej. 125.50" required /></div></label><label>Moneda<select [(ngModel)]="formulario.moneda" name="moneda"><option value="GTQ">Quetzales</option><option value="USD">Dólares</option></select></label></div>
+					<div class="disponible-preview"><span>Dinero disponible</span><strong>Q {{ dineroDisponible | number:'1.2-2' }}</strong><small>Después de este gasto: Q {{ dineroDisponibleDespues | number:'1.2-2' }}</small></div>
+					<div class="modal-actions"><button class="secondary-action" type="button" (click)="cerrarFormulario()">Cancelar</button><button class="primary-action" type="submit">{{ editandoId === null ? 'Guardar gasto' : 'Actualizar gasto' }} <span aria-hidden="true">↗</span></button></div>
+				</form>
+			</section>
+		</div>
+	</section>
+</app-shell>

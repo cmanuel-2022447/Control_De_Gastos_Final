@@ -4,24 +4,28 @@ import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { AppShellComponent } from '../../shared/app-shell/app-shell.component';
+import { StrictInputDirective } from '../../shared/strict-input.directive';
 import { IngresosService, IngresoData } from '../../core/services/ingresos.service';
 
 @Component({
   selector: 'app-ingresos',
   standalone: true,
-  imports: [CommonModule, FormsModule, AppShellComponent],
+  imports: [CommonModule, FormsModule, AppShellComponent, StrictInputDirective],
   templateUrl: './ingresos.html',
   styleUrl: './ingresos.css'
 })
 export class IngresosComponent implements OnInit, OnDestroy {
   readonly tasaCambio = 7.68;
   mostrarFormulario = false;
+  mensaje = '';
+  errorMessage = '';
   editandoId: number | null = null;
   nuevoIngreso = this.formularioVacio();
 
   ingresos: Ingreso[] = [];
   
   private destroy$ = new Subject<void>();
+  private notificationTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(
     private ingresosService: IngresosService,
@@ -119,7 +123,12 @@ export class IngresosComponent implements OnInit, OnDestroy {
 
   guardarIngreso(): void {
     const monto = Number(this.nuevoIngreso.monto) || 0;
-    if (!this.nuevoIngreso.descripcion || !this.nuevoIngreso.lugar || !this.nuevoIngreso.fecha || monto <= 0) return;
+    const textoValido = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü0-9 .,:'()/&-]+$/;
+    if (!this.nuevoIngreso.descripcion || !textoValido.test(this.nuevoIngreso.descripcion) || !this.nuevoIngreso.lugar || !textoValido.test(this.nuevoIngreso.lugar) || !/^\d{4}-\d{2}-\d{2}$/.test(this.nuevoIngreso.fecha) || monto <= 0 || !Number.isFinite(monto)) {
+      this.errorMessage = 'Completa los campos con el formato indicado y un monto mayor que cero.';
+      return;
+    }
+    this.errorMessage = '';
 
     const payload = {
       ...this.nuevoIngreso,
@@ -132,9 +141,14 @@ export class IngresosComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
+          const estabaEditando = this.editandoId !== null;
           this.cerrarFormulario();
+          this.mensaje = estabaEditando ? 'Ingreso actualizado correctamente.' : 'Ingreso guardado correctamente.';
+          this.mostrarNotificacionTemporal();
+          this.cdr.markForCheck();
         },
         error: (err) => {
+          this.errorMessage = err?.error?.message || 'No fue posible guardar el ingreso.';
           console.error('Error guardando ingreso:', err);
         }
       });
@@ -152,6 +166,14 @@ export class IngresosComponent implements OnInit, OnDestroy {
     this.mostrarFormulario = false;
     this.editandoId = null;
     this.nuevoIngreso = this.formularioVacio();
+  }
+
+  private mostrarNotificacionTemporal(): void {
+    if (this.notificationTimer) clearTimeout(this.notificationTimer);
+    this.notificationTimer = setTimeout(() => {
+      this.mensaje = '';
+      this.cdr.markForCheck();
+    }, 3500);
   }
 
   private convertirAlFormatoLocal(ingresos: IngresoData[]): Ingreso[] {
