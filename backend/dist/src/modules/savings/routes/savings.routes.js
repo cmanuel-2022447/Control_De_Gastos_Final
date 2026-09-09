@@ -1,0 +1,12 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const errorHandles_1 = require("../../../middleware/errorHandles");
+const savings_controller_1 = require("../controller/savings.controller");
+const router = (0, express_1.Router)();
+router.use(errorHandles_1.authenticateToken);
+router.get('/', savings_controller_1.getSavings);
+router.post('/', savings_controller_1.postSaving);
+router.put('/:id', savings_controller_1.putSaving);
+router.delete('/:id', savings_controller_1.removeSaving);
+exports.default = router;

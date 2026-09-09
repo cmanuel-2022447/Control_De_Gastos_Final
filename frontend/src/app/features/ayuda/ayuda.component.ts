@@ -6,7 +6,7 @@ import { AppShellComponent } from '../../shared/app-shell/app-shell.component';
   selector: 'app-ayuda',
   standalone: true,
   imports: [CommonModule, AppShellComponent],
-  template: `<app-shell activePage="ayuda"><div class="construction"><div class="construction-mark">◉</div><h1>Ayuda</h1><p>Esta sección está en creación.</p></div></app-shell>`,
-  styles: []
+  templateUrl: './ayuda.html',
+  styleUrl: './ayuda.css'
 })
 export class AyudaComponent {}

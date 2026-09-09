@@ -4,6 +4,7 @@
 .income-page-header, .table-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 22px; }
 .income-page-header { width: min(100%, 1100px); margin: 0 auto 24px; }
 .eyebrow { color: #64748b; font-size: .67rem; font-weight: 800; letter-spacing: .1em; }
+.movement-modal-eyebrow { font-size: .65rem; line-height: 1.2; }
 .income-page-header h1 { margin: 7px 0 5px; color: #134074; font: 400 clamp(2rem, 4vw, 3rem) Georgia, serif; }
 .income-page-header p, .table-toolbar p { margin: 0; color: #64748b; font-size: .84rem; }
 .add-income-button {
@@ -52,6 +53,8 @@ td strong { color: #334155; }
 .row-actions button:hover, .secondary-action:hover { border-color: #1d5f9e; color: #134074; background: #eff6ff; }
 .row-actions button:last-child { color: #9f3f3f; }
 .empty-row { padding: 36px; color: #94a3b8; text-align: center; }
+.save-notification { position: fixed; z-index: 50; top: 24px; right: 24px; width: min(320px, calc(100vw - 48px)); margin: 0; border: 1px solid #9bd8bd; border-radius: 9px; padding: 12px 16px; color: #17624d; background: #e8f7ef; box-shadow: 0 14px 30px rgba(15,23,42,.16); font-size: .78rem; font-weight: 800; animation: notification-in .2s ease-out; }
+@keyframes notification-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
 .income-modal-backdrop { position: fixed; z-index: 30; inset: 0; display: grid; place-items: center; padding: 22px; background: rgba(11,37,69,.56); }
 .income-modal {
   width: min(100%, 520px);

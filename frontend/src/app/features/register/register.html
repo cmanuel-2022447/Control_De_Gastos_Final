@@ -11,22 +11,21 @@
 
     <div class="form-panel">
       <h2>Crear cuenta</h2>
-      <div *ngIf="errorMessage" class="error-message">{{ errorMessage }}</div>
-      <div *ngIf="successMessage" class="success-message">{{ successMessage }}</div>
+      <div *ngIf="errorMessage" class="error-message" role="alert">{{ errorMessage }}</div>
 
-      <form (ngSubmit)="onRegister()">
+      <form *ngIf="traditionalEnabled" (ngSubmit)="onRegister()">
         <div class="form-row">
-          <div class="form-group"><label for="nombre">Nombre</label><input id="nombre" type="text" [(ngModel)]="nombre" name="nombre" autocomplete="given-name" required /></div>
-          <div class="form-group"><label for="apellido">Apellido</label><input id="apellido" type="text" [(ngModel)]="apellido" name="apellido" autocomplete="family-name" required /></div>
+          <div class="form-group"><label for="nombre">Nombre</label><input id="nombre" type="text" appStrictInput="letters" [(ngModel)]="nombre" name="nombre" autocomplete="given-name" placeholder="Ej. Ana María" pattern="[A-Za-zÁÉÍÓÚáéíóúÑñÜü .'-]+" maxlength="100" required /></div>
+          <div class="form-group"><label for="apellido">Apellido</label><input id="apellido" type="text" appStrictInput="letters" [(ngModel)]="apellido" name="apellido" autocomplete="family-name" placeholder="Ej. López García" pattern="[A-Za-zÁÉÍÓÚáéíóúÑñÜü .'-]+" maxlength="100" required /></div>
         </div>
-        <div class="form-group"><label for="email">Correo electrónico</label><input id="email" type="email" [(ngModel)]="email" name="email" autocomplete="email" required /></div>
+        <div class="form-group"><label for="email">Correo electrónico</label><input id="email" type="email" appStrictInput="email" [(ngModel)]="email" name="email" autocomplete="email" placeholder="Ej. nombre@dominio.com" required /></div>
         <div class="form-row">
-          <div class="form-group"><label for="usuario">Usuario</label><input id="usuario" type="text" [(ngModel)]="usuario" name="usuario" autocomplete="username" required /></div>
+          <div class="form-group"><label for="usuario">Usuario</label><input id="usuario" type="text" appStrictInput="username" [(ngModel)]="usuario" name="usuario" autocomplete="username" placeholder="Ej. ana.lopez" pattern="[A-Za-z0-9._-]+" maxlength="80" required /></div>
           <div class="form-group"><label for="genero">Género</label><select id="genero" [(ngModel)]="genero" name="genero" required><option value="" disabled>Selecciona</option><option value="FEMENINO">Femenino</option><option value="MASCULINO">Masculino</option></select></div>
         </div>
         <div class="form-group password-group"><label for="password">Contraseña</label><input id="password" [type]="mostrarPassword ? 'text' : 'password'" [(ngModel)]="password" name="password" autocomplete="new-password" required /><button type="button" class="password-toggle" (click)="alternarPassword()">{{ mostrarPassword ? 'Ocultar' : 'Mostrar' }}</button></div>
-        <div class="form-group"><label for="confirmPassword">Confirmar contraseña</label><input id="confirmPassword" [type]="mostrarPassword ? 'text' : 'password'" [(ngModel)]="confirmPassword" name="confirmPassword" autocomplete="new-password" required /></div>
-        <button type="submit" class="btn-register"><span>Crear cuenta</span><span class="button-arrow" aria-hidden="true">↗</span></button>
+        <div class="form-group password-group"><label for="confirmPassword">Confirmar contraseña</label><input id="confirmPassword" [type]="mostrarConfirmPassword ? 'text' : 'password'" [(ngModel)]="confirmPassword" name="confirmPassword" autocomplete="new-password" required /><button type="button" class="password-toggle" (click)="alternarConfirmPassword()">{{ mostrarConfirmPassword ? 'Ocultar' : 'Mostrar' }}</button></div>
+        <button type="submit" class="btn-register" [disabled]="cargando"><span>{{ cargando ? 'Creando cuenta...' : 'Crear cuenta' }}</span><span class="button-arrow" aria-hidden="true">↗</span></button>
       </form>
       <p class="login-prompt">¿Ya tienes cuenta? <a class="account-link" routerLink="/login">Inicia sesión</a></p>
     </div>

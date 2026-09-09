@@ -12,6 +12,9 @@
 .logo-frame img { display: block; width: 100%; height: 100%; object-fit: contain; transform: scale(2.0); }
 .brand-kicker { color: #dbe7f4; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; }
 .login-header h1 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: clamp(2rem, 6vw, 2.8rem); line-height: .92; letter-spacing: -.04em; }
+.google-option { display: grid; gap: 10px; justify-items: center; margin-top: 20px; color: #64748b; font-size: .82rem; }
+.google-divider { display: block; color: #64748b; font-size: .85rem; line-height: 1; }
+.google-button { min-height: 40px; width: min(100%, 360px); }
 .login-header h1 em { color: #fff; font-style: normal; }
 .login-subtitle { margin-top: 10px; color: #cbd5e1; font-size: .82rem; }
 .form-panel { padding: 22px 22px 24px; }
@@ -28,6 +31,7 @@
 .btn-login:disabled { cursor: wait; opacity: .65; }
 .button-arrow { font-size: 1.25rem; }
 .error-message { margin-top: 14px; border-left: 4px solid #991b1b; border-radius: 8px; padding: 10px 12px; color: #7f1d1d; background: #fee2e2; font-size: .84rem; }
+.success-message { margin-bottom: 14px; border-left: 4px solid #047857; border-radius: 8px; padding: 10px 12px; color: #065f46; background: #d1fae5; font-size: .84rem; }
 .register-prompt { margin: 16px 0 0; color: #475569; text-align: center; font-size: .84rem; }
 .account-link { display: inline-block; margin-left: 4px; border-radius: 8px; padding: 6px 10px; color: #fff; background: #134074; font-weight: 800; text-decoration: none; transition: background .2s, transform .2s; }
 .account-link:hover { background: #0b2545; transform: translateY(-1px); }

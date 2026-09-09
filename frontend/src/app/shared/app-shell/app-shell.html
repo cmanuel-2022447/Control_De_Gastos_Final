@@ -32,7 +32,7 @@
   <main class="main-panel">
     <header class="top-white-container">
       <div>
-        <h2><span class="welcome-word">Bienvenido</span>, <span>{{ etiquetaRol }}</span></h2>
+        <h2><span class="welcome-word">Bienvenido</span>, <span>{{ nombreBienvenida }}</span></h2>
         <p class="subtitle">Gestione sus gastos con más claridad y menos ruido.</p>
       </div>
       <div class="header-actions">
@@ -48,9 +48,9 @@
           </div>
         </div>
         <div class="profile-menu">
-          <button class="profile-chip" type="button" (click)="alternarPerfil()"><img class="profile-avatar" src="assets/img/Hombre.png" alt="" /><span class="profile-label"><strong>{{ datosPerfil.usuario }}</strong><small>{{ datosPerfil.rol }}</small></span><span class="profile-chevron">⌄</span></button>
+          <button class="profile-chip" type="button" (click)="alternarPerfil()"><ng-container *ngIf="fotoPerfil as foto; else avatarCargando"><img class="profile-avatar" [src]="foto" alt="" (error)="marcarErrorFotoPerfil()" /></ng-container><ng-template #avatarCargando><span class="profile-avatar profile-avatar-loading" aria-hidden="true"></span></ng-template><span class="profile-label"><strong>{{ datosPerfil.usuario }}</strong><small>{{ datosPerfil.rol }}</small></span><span class="profile-chevron">⌄</span></button>
           <div *ngIf="perfilAbierto" class="profile-popover">
-            <div class="profile-summary"><img class="profile-avatar large" src="assets/img/Hombre.png" alt="" /><div><strong>{{ datosPerfil.nombre }} {{ datosPerfil.apellido }}</strong><small>{{ datosPerfil.rol }}</small></div></div>
+            <div class="profile-summary"><ng-container *ngIf="fotoPerfil as foto; else avatarResumenCargando"><img class="profile-avatar large" [src]="foto" alt="" (error)="marcarErrorFotoPerfil()" /></ng-container><ng-template #avatarResumenCargando><span class="profile-avatar large profile-avatar-loading" aria-hidden="true"></span></ng-template><div><strong>{{ datosPerfil.nombre }} {{ datosPerfil.apellido }}</strong><small>{{ datosPerfil.rol }}</small></div></div>
             <dl><div><dt>Usuario</dt><dd>{{ datosPerfil.usuario }}</dd></div><div><dt>Correo</dt><dd>{{ datosPerfil.correo }}</dd></div><div><dt>Género</dt><dd>{{ datosPerfil.genero }}</dd></div></dl>
             <a routerLink="/perfil" (click)="alternarPerfil()">Ingresar a mi perfil <span>↗</span></a>
           </div>
