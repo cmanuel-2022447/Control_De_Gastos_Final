@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, shareReplay } from 'rxjs';
 import { tap } from 'rxjs/operators';
+import { AuthService } from './auth.service';
 
 export interface IngresoData {
   id: number;
@@ -26,18 +27,26 @@ export class IngresosService {
   public readonly ingresos$ = this.ingresosSubject.asObservable();
   
   private ingresosCache$: Observable<IngresoData[]> | null = null;
+  private activeSessionKey: string | null = null;
 
-  constructor(private http: HttpClient) {
-    this.cargarIngresosInicial();
+  constructor(private http: HttpClient, private authService: AuthService) {
+    this.authService.session$.subscribe((sessionKey) => {
+      this.activeSessionKey = sessionKey;
+      this.ingresosCache$ = null;
+      this.ingresosSubject.next([]);
+      if (sessionKey) this.cargarIngresosInicial(sessionKey);
+    });
   }
 
   /**
    * Carga inicial de ingresos desde la base de datos
    */
-  private cargarIngresosInicial(): void {
+  private cargarIngresosInicial(sessionKey: string): void {
     this.obtenerIngresosDelServidor().subscribe(
       (data) => {
-        this.ingresosSubject.next(this.transformarIngresos(data));
+        if (this.activeSessionKey === sessionKey) {
+          this.ingresosSubject.next(this.transformarIngresos(data));
+        }
       },
       (error) => {
         console.error('Error cargando ingresos iniciales:', error);
@@ -62,11 +71,14 @@ export class IngresosService {
    * Recarga los ingresos desde el servidor
    */
   public recargarIngresos(): Observable<IngresoData[]> {
+    const sessionKey = this.activeSessionKey;
     this.ingresosCache$ = null;
     return this.obtenerIngresosDelServidor().pipe(
       tap((data) => {
-        const ingresosTransformados = this.transformarIngresos(data);
-        this.ingresosSubject.next(ingresosTransformados);
+        if (this.activeSessionKey === sessionKey) {
+          const ingresosTransformados = this.transformarIngresos(data);
+          this.ingresosSubject.next(ingresosTransformados);
+        }
       })
     );
   }

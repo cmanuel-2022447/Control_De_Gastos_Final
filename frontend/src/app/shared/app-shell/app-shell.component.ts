@@ -1,9 +1,14 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { EMPTY, Subscription, forkJoin, timer } from 'rxjs';
+import { catchError, switchMap } from 'rxjs/operators';
 import { AuthService } from '../../core/services/auth.service';
-import { IngresosService } from '../../core/services/ingresos.service';
+import { GastoData, GastosService } from '../../core/services/gastos.service';
+import { EventoData, EventosService } from '../../core/services/eventos.service';
+import { IngresoData, IngresosService } from '../../core/services/ingresos.service';
+import { PerfilData, PerfilService } from '../../core/services/perfil.service';
 
 type ResultadoBusqueda = {
   texto: string;
@@ -20,15 +25,21 @@ type ContenidoBuscable = string | ResultadoBusqueda;
   templateUrl: './app-shell.html',
   styleUrl: './app-shell.css'
 })
-export class AppShellComponent implements OnInit {
+export class AppShellComponent implements OnInit, OnDestroy {
   @Input() activePage = '';
   @Input() searchableContent: ContenidoBuscable[] = [];
   configuracionesAbiertas = false;
   perfilAbierto = false;
   modoOscuro = false;
   busqueda = '';
+  perfilActual: PerfilData | null = null;
+  perfilCargando = true;
+  fotoPerfilConError = false;
 
   private readonly registrosEnBusqueda: ResultadoBusqueda[] = [];
+  private gastosActuales: GastoData[] = [];
+  private eventosActuales: EventoData[] = [];
+  private sincronizacionSubscription?: Subscription;
 
   private readonly informacionPorPagina: Record<string, string[]> = {
     dashboard: ['Dashboard', 'Resumen de hoy', 'Dinero restante', 'Ingresos', 'Gastos', 'Presupuesto para el evento', 'Extras'],
@@ -87,16 +98,81 @@ export class AppShellComponent implements OnInit {
   constructor(
     private authService: AuthService,
     private router: Router,
-    private ingresosService: IngresosService
+    private ingresosService: IngresosService,
+    private gastosService: GastosService,
+    private eventosService: EventosService,
+    private perfilService: PerfilService
   ) {
-    this.modoOscuro = localStorage.getItem('modoOscuro') === 'true';
+    this.modoOscuro = localStorage.getItem('tema') === 'OSCURO';
   }
 
   ngOnInit(): void {
-    this.ingresosService.ingresos$.subscribe((ingresos) => {
-      this.registrosEnBusqueda.length = 0;
-      this.registrosEnBusqueda.push(...this.construirResultadosDesdeIngresos(ingresos));
+    this.perfilService.tema$.subscribe((tema) => {
+      this.modoOscuro = tema === 'OSCURO';
     });
+    this.perfilService.perfil$.subscribe((perfil) => {
+      this.perfilActual = perfil;
+      this.perfilCargando = !perfil;
+      this.fotoPerfilConError = false;
+    });
+    this.perfilService.obtener().subscribe({
+      next: (perfil) => {
+        this.perfilActual = perfil;
+        this.perfilCargando = false;
+        this.fotoPerfilConError = false;
+      },
+      error: () => {
+        this.perfilCargando = false;
+      }
+    });
+    this.ingresosService.ingresos$.subscribe(() => this.actualizarRegistrosEnBusqueda());
+    this.gastosService.gastos$.subscribe((gastos) => {
+      this.gastosActuales = gastos;
+      this.actualizarRegistrosEnBusqueda();
+    });
+    this.eventosService.eventos$.subscribe((eventos) => {
+      this.eventosActuales = eventos;
+      this.actualizarRegistrosEnBusqueda();
+    });
+    this.perfilService.perfil$.subscribe(() => this.actualizarRegistrosEnBusqueda());
+
+    this.sincronizacionSubscription = timer(0, 3000).pipe(
+      switchMap(() => forkJoin({
+        ingresos: this.ingresosService.recargarIngresos(),
+        gastos: this.gastosService.recargarGastos(),
+        eventos: this.eventosService.recargar(),
+        perfil: this.perfilService.obtener()
+      }).pipe(catchError((error) => {
+        console.error('Error sincronizando la búsqueda:', error);
+        return EMPTY;
+      })))
+    ).subscribe({
+      error: () => undefined
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.sincronizacionSubscription?.unsubscribe();
+  }
+
+  get fotoPerfil(): string | null {
+    if (this.perfilCargando || !this.perfilActual) return null;
+    const rol = String(this.perfilActual.rol || 'USUARIO').toUpperCase();
+    const genero = this.perfilActual.genero || null;
+    const perfilBase = {
+      rol,
+      genero,
+      foto_url: this.fotoPerfilConError ? null : this.perfilActual.foto_url,
+      auth_provider: this.perfilActual.auth_provider
+    };
+
+    const avatar = this.perfilService.resolverAvatar(perfilBase as any);
+    if (avatar) return avatar;
+    return null;
+  }
+
+  marcarErrorFotoPerfil(): void {
+    this.fotoPerfilConError = true;
   }
 
   alternarConfiguraciones(): void {
@@ -105,7 +181,11 @@ export class AppShellComponent implements OnInit {
 
   cambiarTema(modoOscuro: boolean): void {
     this.modoOscuro = modoOscuro;
-    localStorage.setItem('modoOscuro', String(modoOscuro));
+    const tema = modoOscuro ? 'OSCURO' : 'CLARO';
+    localStorage.setItem('tema', tema);
+    if (this.perfilActual) {
+      this.perfilService.actualizar({ tema }).subscribe();
+    }
   }
 
   alternarPerfil(): void {
@@ -114,19 +194,13 @@ export class AppShellComponent implements OnInit {
 
   get datosPerfil(): { nombre: string; apellido: string; usuario: string; correo: string; genero: string; rol: string } {
     const token = this.authService.decodificarPayload() || {};
-    let registro: Partial<{ nombre: string; apellido: string; usuario: string; correo: string; genero: string }> = {};
-    try {
-      registro = JSON.parse(localStorage.getItem('perfilRegistro') || '{}');
-    } catch {
-      registro = {};
-    }
     return {
-      nombre: registro.nombre || 'Usuario',
-      apellido: registro.apellido || '',
-      usuario: token.usuario || registro.usuario || 'Sin usuario',
-      correo: registro.correo || token.email || 'Sin correo',
-      genero: registro.genero || 'No especificado',
-      rol: token.rol || localStorage.getItem('rol') || 'USUARIO'
+      nombre: this.perfilActual?.nombre || token.nombre || 'Usuario',
+      apellido: this.perfilActual?.apellido || token.apellido || '',
+      usuario: this.perfilActual?.usuario || token.usuario || 'Sin usuario',
+      correo: this.perfilActual?.correo || token.email || 'Sin correo',
+      genero: this.perfilActual?.genero || '',
+      rol: this.perfilActual?.rol || token.rol || localStorage.getItem('rol') || 'USUARIO'
     };
   }
 
@@ -173,33 +247,48 @@ export class AppShellComponent implements OnInit {
     };
   }
 
-  private construirResultadosDesdeIngresos(ingresos: Array<{ id?: number; fecha?: string; descripcion?: string; lugar?: string; moneda?: string; monto?: number; monedaDestino?: string; original?: string; conversion?: string }>): ResultadoBusqueda[] {
-    return ingresos.flatMap((ingreso) => {
-      const id = ingreso.id ?? 0;
-      const fecha = String(ingreso.fecha || '').trim();
-      const descripcion = String(ingreso.descripcion || '').trim();
-      const lugar = String(ingreso.lugar || '').trim();
-      const moneda = String(ingreso.moneda || 'GTQ').trim();
-      const monto = Number(ingreso.monto || 0);
-      const monedaDestino = String(ingreso.monedaDestino || (moneda === 'USD' ? 'GTQ' : 'USD')).trim();
-      const conversionTexto = String(ingreso.conversion || '').trim();
-      const originalTexto = String(ingreso.original || '').trim();
-      const campos = [
-        descripcion,
-        lugar,
-        fecha,
-        `${moneda} ${monto.toFixed(2)}`,
-        `${monedaDestino} ${Number(ingreso.monto || 0).toFixed(2)}`,
-        originalTexto,
-        conversionTexto
-      ].filter(Boolean);
+  private actualizarRegistrosEnBusqueda(): void {
+    const resultados: ResultadoBusqueda[] = [
+      ...this.construirResultadosDesdeIngresos(this.ingresosService.obtenerIngresosActuales()),
+      ...this.construirResultadosDesdeGastos(this.gastosActuales),
+      ...this.construirResultadosDesdeEventos(this.eventosActuales),
+      ...this.construirResultadoDesdePerfil(this.perfilActual)
+    ];
+    this.registrosEnBusqueda.length = 0;
+    this.registrosEnBusqueda.push(...resultados);
+  }
 
-      return campos.map((texto) => ({
-        texto: `Ingreso • ${texto}`,
-        selector: id ? `#ingreso-row-${id}` : '#historial-ingresos',
-        ruta: '/ingresos'
-      }));
-    });
+  private construirResultadosDesdeIngresos(ingresos: IngresoData[]): ResultadoBusqueda[] {
+    return ingresos.map((ingreso) => ({
+      texto: `Ingreso • ${[ingreso.descripcion, ingreso.lugar, ingreso.fecha, ingreso.original, ingreso.conversion].filter(Boolean).join(' • ')}`,
+      selector: `#ingreso-row-${ingreso.id}`,
+      ruta: '/ingresos'
+    }));
+  }
+
+  private construirResultadosDesdeGastos(gastos: GastoData[]): ResultadoBusqueda[] {
+    return gastos.map((gasto) => ({
+      texto: `Gasto • ${[gasto.descripcion, gasto.lugar, gasto.categoria, gasto.tipo, gasto.fecha, `${gasto.moneda} ${gasto.monto}`, gasto.total_deuda].filter(value => value !== null && value !== undefined && value !== '').join(' • ')}`,
+      selector: `#gasto-row-${gasto.id}`,
+      ruta: '/gastos'
+    }));
+  }
+
+  private construirResultadosDesdeEventos(eventos: EventoData[]): ResultadoBusqueda[] {
+    return eventos.map((evento) => ({
+      texto: `Evento • ${[evento.nombre, evento.tipo, evento.lugar, evento.fecha, evento.invitados, evento.presupuesto, evento.estado].filter(value => value !== null && value !== undefined && value !== '').join(' • ')}`,
+      selector: `#evento-row-${evento.id}`,
+      ruta: '/planificar-evento'
+    }));
+  }
+
+  private construirResultadoDesdePerfil(perfil: PerfilData | null): ResultadoBusqueda[] {
+    if (!perfil) return [];
+    return [{
+      texto: `Perfil • ${[perfil.usuario, perfil.correo, perfil.nombre, perfil.apellido, perfil.genero, perfil.moneda, perfil.tema, perfil.rol].filter(Boolean).join(' • ')}`,
+      selector: '#perfil-header',
+      ruta: '/perfil'
+    }];
   }
 
   private obtenerResultado(texto: string): ResultadoBusqueda {
@@ -256,6 +345,11 @@ export class AppShellComponent implements OnInit {
     }
 
     navegarYScroll();
+  }
+
+  get nombreBienvenida(): string {
+    const token = this.authService.decodificarPayload() || {};
+    return this.perfilActual?.nombre || token.nombre || this.datosPerfil.usuario || 'Usuario';
   }
 
   get etiquetaRol(): string {

@@ -5,6 +5,9 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { AppShellComponent } from '../../shared/app-shell/app-shell.component';
 import { IngresosService } from '../../core/services/ingresos.service';
+import { GastosService, GastoData } from '../../core/services/gastos.service';
+import { DashboardService } from '../../core/services/dashboard.service';
+import { EventoData, EventosService } from '../../core/services/eventos.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -25,7 +28,7 @@ import { IngresosService } from '../../core/services/ingresos.service';
             </article>
             <div class="income-chart-block">
               <div class="income-chart" [style.background]="graficaIngresos" role="img" aria-label="Gráfica circular de ingresos y gastos">
-                <div class="income-chart-center"><strong>Q {{ totalIngresos | number:'1.2-2' }}</strong><span>Ingresos</span></div>
+                <div class="income-chart-center"><strong>Q {{ dineroRestante | number:'1.2-2' }}</strong><span>Dinero restante</span></div>
               </div>
               <div class="chart-legend">
                 <span><i class="legend-income"></i>Ingresos</span>
@@ -57,8 +60,8 @@ import { IngresosService } from '../../core/services/ingresos.service';
                 <img src="assets/img/Cartera.png" alt="" />
               </article>
               <article class="extra-card debt-card">
-                <span>Total de deuda<br />a pagar</span>
-                <strong>Q {{ deudaPorPagar | number:'1.2-2' }}</strong>
+                <span>Deuda pendiente<br />registrada</span>
+                <strong>Q {{ deudaPendiente | number:'1.2-2' }}</strong>
                 <img src="assets/img/Conchinito.png" alt="" />
               </article>
               <article class="extra-card event-card">
@@ -72,6 +75,12 @@ import { IngresosService } from '../../core/services/ingresos.service';
               <div class="bar-item" *ngFor="let barra of barrasPresupuesto">
                 <span class="bar" [style.height.%]="barra.porcentaje" [title]="barra.etiqueta + ': Q ' + barra.monto"></span>
                 <small>{{ barra.etiqueta }}</small>
+                <em>Q {{ barra.monto }}</em>
+              </div>
+              <div class="bar-item empty-bar" *ngFor="let referencia of barrasVacias" [class.hidden-bar]="barrasPresupuesto.length > 0">
+                <span class="bar" title="Sin presupuesto"></span>
+                <small>0</small>
+                <em>Q 0.00</em>
               </div>
             </div>
           </section>
@@ -92,7 +101,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
       { texto: `Ingresos Q ${this.totalIngresos.toFixed(2)}`, selector: '#resumen-hoy', ruta: '/dashboard' },
       { texto: `Gastos Q ${this.totalGastos.toFixed(2)}`, selector: '#resumen-hoy', ruta: '/dashboard' },
       { texto: `Dinero gastado Q ${this.dineroGastado.toFixed(2)}`, selector: '#extras-section', ruta: '/dashboard' },
-      { texto: `Deuda por pagar Q ${this.deudaPorPagar.toFixed(2)}`, selector: '#extras-section', ruta: '/dashboard' },
+      { texto: `Deuda pendiente Q ${this.deudaPendiente.toFixed(2)}`, selector: '#extras-section', ruta: '/dashboard' },
       { texto: `Presupuesto para el evento Q ${this.presupuestoEvento.toFixed(2)}`, selector: '#extras-section', ruta: '/dashboard' },
       { texto: 'Extras', selector: '#extras-section', ruta: '/dashboard' },
       { texto: `Ingresos ${this.porcentajeIngresos}%`, selector: '#resumen-hoy', ruta: '/dashboard' }
@@ -103,39 +112,77 @@ export class DashboardComponent implements OnInit, OnDestroy {
   totalGastos = 0;
   dineroRestante = 0;
   dineroGastado = 0;
-  deudaPorPagar = 0;
+  gastosFijos = 0;
+  deudaPendiente = 0;
   presupuestoEvento = 0;
   porcentajeIngresos = 0;
   graficaIngresos = 'conic-gradient(#194c84 0 0%, #9fd7e8 0% 100%)';
-  barrasPresupuesto = [
-    { etiqueta: 'Ene', monto: '0.00', porcentaje: 0 },
-    { etiqueta: 'Feb', monto: '0.00', porcentaje: 0 },
-    { etiqueta: 'Mar', monto: '0.00', porcentaje: 0 }
-  ];
+  barrasPresupuesto: Array<{ etiqueta: string; monto: string; porcentaje: number }> = [];
+  readonly barrasVacias = [0, 1, 2];
+  private eventosActuales: EventoData[] = [];
 
   private destroy$ = new Subject<void>();
 
   constructor(
     private ingresosService: IngresosService,
+    private gastosService: GastosService,
+    private dashboardService: DashboardService,
+    private eventosService: EventosService,
     private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
+    this.cargarResumenRemoto();
+    this.eventosService.eventos$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((eventos) => {
+        this.actualizarBarras(eventos);
+        this.cargarResumenRemoto();
+        this.cdr.markForCheck();
+      });
     // Suscribirse a los cambios de ingresos desde el servicio compartido
     this.ingresosService.ingresos$
       .pipe(takeUntil(this.destroy$))
       .subscribe((ingresos) => {
         this.totalIngresos = this.calcularTotalIngresos(ingresos);
-        this.totalGastos = 0;
+        this.actualizarDineroRestante();
+        this.actualizarGrafica();
+        this.cdr.markForCheck();
+        this.cargarResumenRemoto();
+      });
+
+    this.gastosService.gastos$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((gastos) => {
+        this.totalGastos = this.calcularTotalGastos(gastos);
         this.dineroGastado = this.totalGastos;
-        this.deudaPorPagar = 0;
-        this.presupuestoEvento = 0;
-        this.dineroRestante = this.totalIngresos - this.totalGastos;
+        this.gastosFijos = 0;
+        this.deudaPendiente = 0;
+        this.actualizarDineroRestante();
         this.actualizarGrafica();
         this.actualizarBarras();
         // Fuerza detección de cambios porque usamos provideZonelessChangeDetection()
         this.cdr.markForCheck();
+        this.cargarResumenRemoto();
       });
+  }
+
+  private cargarResumenRemoto(): void {
+    this.dashboardService.obtenerResumen().subscribe({
+      next: (resumen) => {
+        this.totalIngresos = resumen.totalIngresos;
+        this.totalGastos = resumen.totalGastos;
+        this.dineroRestante = resumen.dineroRestante;
+        this.dineroGastado = resumen.totalGastos;
+        this.gastosFijos = resumen.gastosFijos;
+        this.deudaPendiente = resumen.deudaPendiente;
+        this.presupuestoEvento = resumen.presupuestoEvento;
+        this.actualizarGrafica();
+        this.actualizarBarras();
+        this.cdr.markForCheck();
+      },
+      error: () => this.cdr.markForCheck()
+    });
   }
 
   ngOnDestroy(): void {
@@ -158,18 +205,38 @@ export class DashboardComponent implements OnInit, OnDestroy {
     }, 0);
   }
 
+  private calcularTotalGastos(gastos: GastoData[]): number {
+    return (gastos || []).reduce((total, gasto) => {
+      const monto = Number(gasto.monto || 0);
+      return total + (gasto.moneda === 'USD' ? monto * this.tasaCambio : monto);
+    }, 0);
+  }
+
+  private actualizarDineroRestante(): void {
+    this.dineroRestante = this.totalIngresos - this.totalGastos;
+  }
+
   private actualizarGrafica(): void {
     const totalBase = this.totalIngresos + this.totalGastos;
     this.porcentajeIngresos = totalBase > 0 ? Math.round((this.totalIngresos / totalBase) * 100) : 0;
     this.graficaIngresos = `conic-gradient(#194c84 0 ${this.porcentajeIngresos}%, #9fd7e8 ${this.porcentajeIngresos}% 100%)`;
   }
 
-  private actualizarBarras(): void {
-    this.barrasPresupuesto = [
-      { etiqueta: 'Ene', monto: '0.00', porcentaje: this.totalIngresos > 0 ? 0 : 0 },
-      { etiqueta: 'Feb', monto: '0.00', porcentaje: 0 },
-      { etiqueta: 'Mar', monto: '0.00', porcentaje: 0 }
-    ];
+  private actualizarBarras(eventos?: EventoData[]): void {
+    if (eventos) this.eventosActuales = eventos;
+
+    const eventosActivos = this.eventosActuales.filter((evento) => evento.estado?.toUpperCase() !== 'CANCELADO');
+    const presupuestos = eventosActivos.map((evento) => Number(evento.presupuesto) || 0);
+    const presupuestoMaximo = Math.max(...presupuestos, 0);
+
+    this.barrasPresupuesto = eventosActivos.map((evento) => {
+      const presupuesto = Number(evento.presupuesto) || 0;
+      return {
+        etiqueta: evento.nombre,
+        monto: presupuesto.toFixed(2),
+        porcentaje: presupuestoMaximo > 0 ? (presupuesto / presupuestoMaximo) * 100 : 0
+      };
+    });
   }
 
   private resetearTotales(): void {
@@ -177,14 +244,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.totalGastos = 0;
     this.dineroRestante = 0;
     this.dineroGastado = 0;
-    this.deudaPorPagar = 0;
+    this.gastosFijos = 0;
+    this.deudaPendiente = 0;
     this.presupuestoEvento = 0;
     this.porcentajeIngresos = 0;
     this.graficaIngresos = 'conic-gradient(#194c84 0 0%, #9fd7e8 0% 100%)';
-    this.barrasPresupuesto = [
-      { etiqueta: 'Ene', monto: '0.00', porcentaje: 0 },
-      { etiqueta: 'Feb', monto: '0.00', porcentaje: 0 },
-      { etiqueta: 'Mar', monto: '0.00', porcentaje: 0 }
-    ];
+    this.barrasPresupuesto = [];
   }
 }

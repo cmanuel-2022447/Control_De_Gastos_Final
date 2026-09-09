@@ -1,1 +1,35 @@
-<p>planificar-evento works!</p>
+<app-shell #shell activePage="planificar-evento">
+	<section class="content eventos-content" [class.dark-mode]="shell.modoOscuro">
+		<div class="income-page-header">
+			<div><span class="eyebrow eventos-page-eyebrow">PLANIFICACIÓN</span><h1 id="evento-header">Planificar evento</h1><p>Organiza cualquier meta, viaje o celebración con un presupuesto claro.</p></div>
+			<button class="primary-action add-income-button" type="button" (click)="abrirFormulario()"><span aria-hidden="true">＋</span> Agregar nuevo evento</button>
+		</div>
+		<div class="income-summary" id="resumen-eventos">
+			<article><span>Eventos registrados</span><strong>{{ eventos.length }}</strong><small>Planes guardados</small></article>
+			<article><span>Presupuesto total</span><strong>Q {{ presupuestoTotal | number:'1.2-2' }}</strong><small>Presupuesto acumulado</small></article>
+			<article><span>Próximos eventos</span><strong>{{ proximosEventos }}</strong><small>Desde hoy en adelante</small></article>
+		</div>
+		<section class="income-table-card" id="historial-eventos">
+			<div class="table-toolbar"><div><h2>Eventos</h2><p>Consulta la planificación y el presupuesto de cada evento.</p></div></div>
+			<div class="table-scroll"><table>
+				<thead><tr><th>Fecha</th><th>Nombre</th><th>Tipo</th><th>Invitados</th><th>Lugar</th><th>Presupuesto</th><th>Acciones</th></tr></thead>
+				<tbody>
+					<tr *ngFor="let evento of eventos" [id]="'evento-row-' + evento.id">
+						<td>{{ evento.fecha | date:'dd/MM/yyyy' }}</td><td><strong>{{ evento.nombre }}</strong></td><td>{{ evento.tipo }}</td>
+						<td>{{ evento.invitados === null || evento.invitados === undefined ? '—' : evento.invitados }}</td><td>{{ evento.lugar || '—' }}</td><td class="converted">Q {{ evento.presupuesto | number:'1.2-2' }}</td>
+						<td class="row-actions"><button type="button" (click)="editar(evento)" aria-label="Editar evento">Editar</button><button type="button" (click)="eliminar(evento.id)" aria-label="Eliminar evento">Eliminar</button></td>
+					</tr>
+					<tr *ngIf="!eventos.length"><td class="empty-row" colspan="7">Aún no hay eventos planificados.</td></tr>
+				</tbody>
+			</table></div>
+		</section>
+		<div *ngIf="mostrarFormulario" class="income-modal-backdrop" (click)="cerrarFormulario()">
+			<section class="income-modal" role="dialog" aria-modal="true" aria-labelledby="event-form-title" (click)="$event.stopPropagation()">
+				<div class="modal-heading"><div><span class="eyebrow eventos-modal-eyebrow">PLANIFICACIÓN</span><h2 id="event-form-title">{{ editando === null ? 'Agregar evento' : 'Editar evento' }}</h2></div><button type="button" (click)="cerrarFormulario()" aria-label="Cerrar formulario">×</button></div>
+				<form (ngSubmit)="guardar()"><label>Nombre<input appStrictInput="text" [(ngModel)]="formulario.nombre" name="nombre" placeholder="Ej. Viaje familiar" pattern="[A-Za-zÁÉÍÓÚáéíóúÑñÜü0-9 .,:'()/&-]+" maxlength="150" required /></label><label>Tipo<input appStrictInput="text" [(ngModel)]="formulario.tipo" name="tipo" placeholder="Ej. Viaje o cumpleaños" pattern="[A-Za-zÁÉÍÓÚáéíóúÑñÜü0-9 .,:'()/&-]+" maxlength="80" required /></label><label>Invitados<input type="number" appStrictInput="integer" min="0" step="1" [(ngModel)]="formulario.invitados" name="invitados" placeholder="Ej. 10" /></label><label>Lugar<input appStrictInput="text" [(ngModel)]="formulario.lugar" name="lugar" placeholder="Ej. Salón o casa" pattern="[A-Za-zÁÉÍÓÚáéíóúÑñÜü0-9 .,:'()/&-]+" maxlength="255" /></label><label>Fecha<input type="date" [(ngModel)]="formulario.fecha" name="fecha" required /></label><label>Presupuesto<input type="number" appStrictInput="decimal" min="0" step="0.01" [(ngModel)]="formulario.presupuesto" name="presupuesto" placeholder="Ej. 2500.00" required /></label><div class="modal-actions"><button class="secondary-action" type="button" (click)="cerrarFormulario()">Cancelar</button><button class="primary-action" type="submit">{{ editando === null ? 'Guardar evento' : 'Actualizar evento' }} <span aria-hidden="true">↗</span></button></div></form>
+			</section>
+		</div>
+		<p *ngIf="successMessage" class="save-notification" role="status">{{ successMessage }}</p>
+		<p *ngIf="errorMessage" class="form-error">{{ errorMessage }}</p>
+	</section>
+</app-shell>

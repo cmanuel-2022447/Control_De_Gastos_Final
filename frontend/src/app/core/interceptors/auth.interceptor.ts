@@ -1,6 +1,6 @@
 import { HttpInterceptorFn, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { catchError, throwError } from 'rxjs';
+import { catchError, tap, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 
 /**
@@ -17,10 +17,11 @@ import { AuthService } from '../services/auth.service';
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
   const token = authService.getToken();
+  const esInicioSesion = req.url.endsWith('/login') || req.url.endsWith('/google') || req.url.endsWith('/google-config') || req.url.endsWith('/register');
 
   // Agregar Authorization header si tenemos token
   let clonedReq = req;
-  if (token) {
+  if (token && !esInicioSesion) {
     clonedReq = req.clone({
       setHeaders: {
         Authorization: `Bearer ${token}`
@@ -29,12 +30,18 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   }
 
   return next(clonedReq).pipe(
+    tap((event: any) => {
+      const renewedToken = event?.headers?.get?.('X-Session-Token');
+      if (renewedToken && token && authService.getToken() === token) {
+        authService.actualizarToken(renewedToken);
+      }
+    }),
     catchError((error: HttpErrorResponse) => {
       // Detectar si el backend rechazó autenticación
       if (error.status === 401) {
         // Solo procesar 401 si hay token y no es una petición al login
         // (el login puede devolver 401 por credenciales incorrectas)
-        if (token && !req.url.endsWith('/login') && !req.url.endsWith('/register')) {
+        if (token && authService.getToken() === token && !esInicioSesion && !req.url.endsWith('/logout')) {
           // Notificar al servicio de autenticación
           // La deduplicación se maneja en AuthService
           authService.sesionRechazadaPorBackend();

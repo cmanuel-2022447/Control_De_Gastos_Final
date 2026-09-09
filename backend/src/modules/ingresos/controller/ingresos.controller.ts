@@ -1,9 +1,11 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { getAllIngresos, saveIngreso, updateIngreso, deleteIngreso, clearIngresos } from '../services/ingresos.service';
+import { AuthenticatedRequest } from '../../../middleware/errorHandles';
 
-export const getIngresos = async (_req: Request, res: Response) => {
+export const getIngresos = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const data = await getAllIngresos();
+    if (!req.user?.id) return res.status(401).json({ message: 'Usuario no autenticado' });
+    const data = await getAllIngresos(Number(req.user.id));
     return res.status(200).json(data);
   } catch (error) {
     console.error(error);
@@ -11,9 +13,10 @@ export const getIngresos = async (_req: Request, res: Response) => {
   }
 };
 
-export const createIngreso = async (req: Request, res: Response) => {
+export const createIngreso = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const nuevoIngreso = await saveIngreso(req.body);
+    if (!req.user?.id) return res.status(401).json({ message: 'Usuario no autenticado' });
+    const nuevoIngreso = await saveIngreso(Number(req.user.id), req.body);
     return res.status(201).json({ message: 'Ingreso guardado con éxito', data: nuevoIngreso });
   } catch (error) {
     console.error(error);
@@ -24,10 +27,11 @@ export const createIngreso = async (req: Request, res: Response) => {
   }
 };
 
-export const updateIngresoController = async (req: Request, res: Response) => {
+export const updateIngresoController = async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user?.id) return res.status(401).json({ message: 'Usuario no autenticado' });
     const id = Number(req.params.id);
-    const ingresoActualizado = await updateIngreso(id, req.body);
+    const ingresoActualizado = await updateIngreso(Number(req.user.id), id, req.body);
     return res.status(200).json({ message: 'Ingreso actualizado', data: ingresoActualizado });
   } catch (error) {
     console.error(error);
@@ -38,10 +42,11 @@ export const updateIngresoController = async (req: Request, res: Response) => {
   }
 };
 
-export const deleteIngresoController = async (req: Request, res: Response) => {
+export const deleteIngresoController = async (req: AuthenticatedRequest, res: Response) => {
   try {
+    if (!req.user?.id) return res.status(401).json({ message: 'Usuario no autenticado' });
     const id = Number(req.params.id);
-    const result = await deleteIngreso(id);
+    const result = await deleteIngreso(Number(req.user.id), id);
     return res.status(200).json({ message: 'Ingreso eliminado', data: result });
   } catch (error) {
     console.error(error);
@@ -52,9 +57,10 @@ export const deleteIngresoController = async (req: Request, res: Response) => {
   }
 };
 
-export const clearIngresosController = async (_req: Request, res: Response) => {
+export const clearIngresosController = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const result = await clearIngresos();
+    if (!req.user?.id) return res.status(401).json({ message: 'Usuario no autenticado' });
+    const result = await clearIngresos(Number(req.user.id));
     return res.status(200).json({ message: 'Ingresos eliminados al cerrar sesión', data: result });
   } catch (error) {
     console.error(error);

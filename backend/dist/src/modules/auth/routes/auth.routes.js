@@ -2,7 +2,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_controller_1 = require("../controller/auth.controller");
+const errorHandles_1 = require("../../../middleware/errorHandles");
 const router = (0, express_1.Router)();
 router.post('/login', auth_controller_1.AuthController.login);
 router.post('/register', auth_controller_1.AuthController.register);
+router.get('/google-config', auth_controller_1.AuthController.googleConfig);
+router.post('/google', auth_controller_1.AuthController.googleLogin);
+router.post('/logout', errorHandles_1.authenticateToken, auth_controller_1.AuthController.logout);
+router.post('/activity', errorHandles_1.authenticateToken, auth_controller_1.AuthController.activity);
+router.get('/profile', errorHandles_1.authenticateToken, auth_controller_1.AuthController.profile);
+router.put('/profile', errorHandles_1.authenticateToken, auth_controller_1.AuthController.updateProfile);
 exports.default = router;

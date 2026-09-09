@@ -1,8 +1,14 @@
-import { Injectable, signal } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { Inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable } from 'rxjs';
-import { tap } from 'rxjs/operators';
+import { BehaviorSubject, Observable, fromEvent } from 'rxjs';
+import { tap, throttleTime } from 'rxjs/operators';
+import { PerfilService } from './perfil.service';
+
+declare global {
+  interface Window { google?: any; }
+}
 
 /**
  * ServicioAutenticación JWT con manejo robusto de expiración
@@ -19,20 +25,30 @@ import { tap } from 'rxjs/operators';
 })
 export class AuthService {
   private apiUrl = 'http://localhost:3000/api/auth';
+  private readonly INACTIVITY_TIMEOUT_MS = 3 * 60 * 1000;
   
   // Timer para cerrar sesión automáticamente ANTES de que expire
   // (esto es un hint del cliente, no es verificación de seguridad)
   private expirationTimer: ReturnType<typeof setTimeout> | undefined;
+  private inactivityTimer: ReturnType<typeof setTimeout> | undefined;
+  private googleScriptPromise: Promise<void> | undefined;
   
   // Flag para prevenir múltiples intentos simultáneos de cierre
   // CRÍTICO: Previene 10 peticiones 401 → 10 logout
   private sessionTerminationInProgress = false;
+
+  private readonly sessionSubject = new BehaviorSubject<string | null>(null);
+  readonly session$ = this.sessionSubject.asObservable();
   
   // Signal para mostrar el aviso de sesión expirada
   readonly sessionExpiredNotice = signal('');
 
-  constructor(private http: HttpClient, private router: Router) {
+  constructor(private http: HttpClient, private router: Router, private perfilService: PerfilService, @Inject(DOCUMENT) private document: Document) {
     this.inicializarSesion();
+    this.sessionSubject.next(this.obtenerClaveSesion());
+    fromEvent(this.document, 'click').pipe(throttleTime(1000)).subscribe(() => this.registrarActividad());
+    fromEvent(this.document, 'keydown').pipe(throttleTime(1000)).subscribe(() => this.registrarActividad());
+    fromEvent(this.document, 'pointerdown').pipe(throttleTime(1000)).subscribe(() => this.registrarActividad());
   }
 
   /**
@@ -45,10 +61,7 @@ export class AuthService {
     return this.http.post(`${this.apiUrl}/login`, credentials).pipe(
       tap((response: any) => {
         if (response && response.token) {
-          localStorage.setItem('token', response.token);
-          localStorage.setItem('rol', response.rol || 'USUARIO');
-          // Programar logout automático ANTES de que expire
-          this.programarCierreAutomatico();
+          this.guardarToken(response);
         }
       })
     );
@@ -62,6 +75,38 @@ export class AuthService {
     return this.http.post(`${this.apiUrl}/register`, userData);
   }
 
+  googleConfig(): Observable<{ enabled: boolean; clientId: string | null; traditionalEnabled: boolean }> {
+    return this.http.get<{ enabled: boolean; clientId: string | null; traditionalEnabled: boolean }>(`${this.apiUrl}/google-config`);
+  }
+
+  googleLogin(credential: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/google`, { credential }).pipe(tap((response: any) => this.guardarToken(response)));
+  }
+
+  renderGoogleButton(element: HTMLElement, clientId: string, callback: (credential: string) => void): void {
+    const render = () => {
+      if (!window.google?.accounts?.id || !element.isConnected) return;
+      window.google.accounts.id.initialize({ client_id: clientId, callback: (response: any) => callback(response.credential) });
+      window.google.accounts.id.renderButton(element, { theme: 'outline', size: 'large', width: element.clientWidth || 360, text: 'signin_with' });
+    };
+
+    if (window.google?.accounts?.id) {
+      render();
+      return;
+    }
+
+    this.googleScriptPromise ??= new Promise<void>((resolve, reject) => {
+      const script = this.document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('GOOGLE_SCRIPT_LOAD_FAILED'));
+      this.document.head.appendChild(script);
+    });
+    this.googleScriptPromise.then(render).catch(() => undefined);
+  }
+
   /**
    * LOGOUT MANUAL
    * Este cierre se usa cuando el usuario decide cerrar sesión por su cuenta.
@@ -70,6 +115,7 @@ export class AuthService {
    */
   logout(): void {
     this.sessionExpiredNotice.set('');
+    if (this.getToken()) this.http.post(`${this.apiUrl}/logout`, {}).subscribe({ error: () => undefined });
     this._terminarSesion('logout_manual', false);
   }
 
@@ -217,6 +263,32 @@ export class AuthService {
     // Token válido localmente, programar cierre antes de expirar
     this.sessionExpiredNotice.set('');
     this.programarCierreAutomatico();
+    this.programarInactividad();
+  }
+
+  private guardarToken(response: any): void {
+    localStorage.setItem('token', response.token);
+    localStorage.setItem('rol', response.rol || 'USUARIO');
+    this.perfilService.limpiarEstado(false);
+    this.sessionSubject.next(this.obtenerClaveSesion());
+    this.programarCierreAutomatico();
+    this.programarInactividad();
+  }
+
+  actualizarToken(token: string): void {
+    if (token) { localStorage.setItem('token', token); this.programarCierreAutomatico(); }
+  }
+
+  registrarActividad(): void {
+    if (this.getToken()) {
+      this.programarInactividad();
+      this.http.post(`${this.apiUrl}/activity`, {}).subscribe({ error: () => undefined });
+    }
+  }
+
+  private programarInactividad(): void {
+    if (this.inactivityTimer) clearTimeout(this.inactivityTimer);
+    this.inactivityTimer = setTimeout(() => this._terminarSesion('inactividad_1_minuto'), this.INACTIVITY_TIMEOUT_MS);
   }
 
   /**
@@ -310,10 +382,31 @@ export class AuthService {
       clearTimeout(this.expirationTimer);
       this.expirationTimer = undefined;
     }
+    if (this.inactivityTimer) {
+      clearTimeout(this.inactivityTimer);
+      this.inactivityTimer = undefined;
+    }
 
     // Eliminar datos de autenticación
     localStorage.removeItem('token');
     localStorage.removeItem('rol');
     localStorage.removeItem('perfilRegistro');
+    this.perfilService.limpiarEstado();
+    this.sessionSubject.next(null);
+  }
+
+  private obtenerClaveSesion(): string | null {
+    const token = this.getToken();
+    if (!token) return null;
+
+    try {
+      const payload = token.split('.')[1];
+      if (!payload) return null;
+      const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
+      return String(JSON.parse(atob(padded)).id || '');
+    } catch {
+      return null;
+    }
   }
 }

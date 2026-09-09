@@ -13,15 +13,19 @@
 
     <div class="form-panel">
       <h2>Iniciar sesión</h2>
+      <div *ngIf="success" class="success-message" role="status" aria-live="polite">{{ success }}</div>
       <form (ngSubmit)="login()">
         <div class="form-group">
           <label for="login">Correo o usuario</label>
           <input 
             type="text" 
+            appStrictInput="login"
             id="login" 
             [(ngModel)]="loginValue" 
             name="login" 
             placeholder="correo@ejemplo.com o usuario"
+            pattern="[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|[A-Za-z0-9._-]+"
+            maxlength="255"
             required
           />
         </div>
@@ -46,6 +50,11 @@
           <span class="button-arrow" aria-hidden="true">↗</span>
         </button>
       </form>
+
+      <div *ngIf="googleEnabled" class="google-option">
+        <span class="google-divider" aria-hidden="true">o</span>
+        <div #googleButton class="google-button" aria-label="Iniciar sesión con Google"></div>
+      </div>
 
       <div *ngIf="error" class="error-message">{{ error }}</div>
       <p class="register-prompt">

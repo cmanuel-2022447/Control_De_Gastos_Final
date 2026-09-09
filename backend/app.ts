@@ -7,13 +7,18 @@ import cors from 'cors';
 import authRoutes from './src/modules/auth/routes/auth.routes';
 import expensiveRoutes from './src/modules/expensive/routes/expensive.routes';
 import ingresosRoutes from './src/modules/ingresos/routes/ingresos.routes';
+import eventsRoutes from './src/modules/events/routes/events.routes';
+import dashboardRoutes from './src/modules/dashboard/routes/dashboard.routes';
 import { errorHandler } from './src/middleware/errorHandles';
 
 // Crear instancia de Express
 const app = express();
 
-// Middleware para permitir solicitudes desde otros origenes
-app.use(cors());
+// El origen debe coincidir exactamente con el configurado en Google Cloud.
+app.use(cors({
+	origin: 'http://localhost:4200',
+	exposedHeaders: ['X-Session-Token']
+}));
 
 // Middleware para parsear JSON en el cuerpo de las solicitudes
 app.use(express.json());
@@ -22,6 +27,8 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/expensive', expensiveRoutes);
 app.use('/api/ingresos', ingresosRoutes);
+app.use('/api/eventos', eventsRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use(errorHandler);
 
 export default app;
