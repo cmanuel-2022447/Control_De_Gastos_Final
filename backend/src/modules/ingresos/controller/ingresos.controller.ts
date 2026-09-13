@@ -21,8 +21,10 @@ export const createIngreso = async (req: AuthenticatedRequest, res: Response) =>
   } catch (error) {
     console.error(error);
     if (error instanceof Error && error.message === 'INVALID_INCOME_DATA') {
-      return res.status(400).json({ message: 'Faltan datos o el monto no es válido' });
+      return res.status(400).json({ message: 'Los datos del ingreso no son válidos. El monto admite máximo 3 decimales.' });
     }
+    if (error instanceof Error && error.message === 'INCOME_DATE_NOT_TODAY') return res.status(400).json({ message: 'Los ingresos solo pueden registrarse con la fecha de hoy.' });
+    if (error instanceof Error && error.message === 'INVALID_CURRENCY') return res.status(400).json({ message: 'La moneda seleccionada no es válida.' });
     return res.status(500).json({ message: 'Error al guardar el ingreso' });
   }
 };
@@ -38,6 +40,9 @@ export const updateIngresoController = async (req: AuthenticatedRequest, res: Re
     if (error instanceof Error && error.message === 'INCOME_NOT_FOUND') {
       return res.status(404).json({ message: 'Ingreso no encontrado' });
     }
+    if (error instanceof Error && error.message === 'INVALID_INCOME_DATA') return res.status(400).json({ message: 'Los datos del ingreso no son válidos. El monto admite máximo 3 decimales.' });
+    if (error instanceof Error && error.message === 'INCOME_DATE_NOT_TODAY') return res.status(400).json({ message: 'Los ingresos solo pueden registrarse con la fecha de hoy.' });
+    if (error instanceof Error && error.message === 'INVALID_CURRENCY') return res.status(400).json({ message: 'La moneda seleccionada no es válida.' });
     return res.status(500).json({ message: 'Error al actualizar el ingreso' });
   }
 };

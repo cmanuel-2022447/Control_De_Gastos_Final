@@ -19,6 +19,25 @@ const db_1 = require("../../../config/db");
 const jwt_1 = require("../../../util/jwt");
 const googleClient = new google_auth_library_1.OAuth2Client();
 const SESSION_IDLE_MINUTES = 3;
+const MAX_PROFILE_IMAGE_LENGTH = 3000000;
+function normalizarFoto(value) {
+    const foto = String(value || '').trim();
+    if (!foto)
+        return null;
+    if (foto.length > MAX_PROFILE_IMAGE_LENGTH)
+        throw new Error('INVALID_PROFILE_PHOTO');
+    if (/^data:image\/(png|jpeg|jpg|webp|gif);base64,[a-z0-9+/=]+$/i.test(foto))
+        return foto;
+    try {
+        const url = new URL(foto);
+        if (url.protocol !== 'https:')
+            throw new Error('INVALID_PROFILE_PHOTO');
+        return url.toString();
+    }
+    catch (_a) {
+        throw new Error('INVALID_PROFILE_PHOTO');
+    }
+}
 function googleClientId() {
     var _a;
     const value = (_a = process.env.GOOGLE_CLIENT_ID) === null || _a === void 0 ? void 0 : _a.trim();
@@ -63,7 +82,7 @@ class AuthService {
                         WHEN 'M' THEN 'MASCULINO'
                         ELSE NULL
                     END AS genero,
-                    foto_url, auth_provider, moneda, tema, rol
+                    foto_url, foto_origen, auth_provider, moneda, tema, rol
              FROM public.usuarios WHERE id = $1`, [userId]);
             if (!result.rowCount)
                 throw new Error('USER_NOT_FOUND');
@@ -72,7 +91,7 @@ class AuthService {
     }
     static updateProfile(userId, data) {
         return __awaiter(this, void 0, void 0, function* () {
-            const current = yield db_1.pool.query(`SELECT nombre, apellido, genero, foto_url, moneda, tema
+            const current = yield db_1.pool.query(`SELECT nombre, apellido, genero, foto_url, foto_origen, moneda, tema
              FROM public.usuarios WHERE id = $1`, [userId]);
             if (!current.rowCount)
                 throw new Error('USER_NOT_FOUND');
@@ -83,16 +102,17 @@ class AuthService {
             const genero = has('genero') ? normalizarGenero(data.genero) : saved.genero;
             if (has('genero') && !genero)
                 throw new Error('INVALID_GENDER');
-            const fotoUrl = has('foto_url') ? String(data.foto_url || '').trim() || null : saved.foto_url;
+            const fotoUrl = has('foto_url') ? normalizarFoto(data.foto_url) : saved.foto_url;
+            const fotoOrigen = has('foto_url') ? (fotoUrl ? 'MANUAL' : 'NONE') : saved.foto_origen;
             const moneda = has('moneda') && ['GTQ', 'USD'].includes(String(data.moneda || '').toUpperCase())
                 ? String(data.moneda).toUpperCase()
                 : saved.moneda;
             const tema = has('tema') && ['CLARO', 'OSCURO'].includes(String(data.tema || '').toUpperCase())
                 ? String(data.tema).toUpperCase()
                 : saved.tema;
-            const result = yield db_1.pool.query(`UPDATE public.usuarios SET nombre = $1, apellido = $2, genero = $3, foto_url = $4, moneda = $5, tema = $6
-             WHERE id = $7
-             RETURNING id, usuario, correo, nombre, apellido, genero, foto_url, auth_provider, moneda, tema, rol`, [nombre, apellido, genero, fotoUrl, moneda, tema, userId]);
+            const result = yield db_1.pool.query(`UPDATE public.usuarios SET nombre = $1, apellido = $2, genero = $3, foto_url = $4, foto_origen = $5, moneda = $6, tema = $7
+             WHERE id = $8
+             RETURNING id, usuario, correo, nombre, apellido, genero, foto_url, foto_origen, auth_provider, moneda, tema, rol`, [nombre, apellido, genero, fotoUrl, fotoOrigen, moneda, tema, userId]);
             if (!result.rowCount)
                 throw new Error('USER_NOT_FOUND');
             return result.rows[0];
@@ -162,9 +182,9 @@ class AuthService {
                 !['accounts.google.com', 'https://accounts.google.com'].includes(payload.iss || '')) {
                 throw new Error('GOOGLE_ACCOUNT_INVALID');
             }
-            const byGoogleSub = yield db_1.pool.query(`SELECT id, usuario, correo, nombre, apellido, genero, foto_url, rol, session_version, google_sub
+            const byGoogleSub = yield db_1.pool.query(`SELECT id, usuario, correo, nombre, apellido, genero, foto_url, foto_origen, rol, session_version, google_sub
              FROM public.usuarios WHERE google_sub = $1 LIMIT 1`, [payload.sub]);
-            const byEmail = byGoogleSub.rows[0] ? null : yield db_1.pool.query(`SELECT id, usuario, correo, nombre, apellido, genero, foto_url, rol, session_version, google_sub
+            const byEmail = byGoogleSub.rows[0] ? null : yield db_1.pool.query(`SELECT id, usuario, correo, nombre, apellido, genero, foto_url, foto_origen, rol, session_version, google_sub
              FROM public.usuarios WHERE LOWER(correo) = LOWER($1) LIMIT 1`, [payload.email]);
             let user = byGoogleSub.rows[0] || (byEmail === null || byEmail === void 0 ? void 0 : byEmail.rows[0]);
             if ((user === null || user === void 0 ? void 0 : user.google_sub) && user.google_sub !== payload.sub) {
@@ -172,7 +192,9 @@ class AuthService {
             }
             if (user) {
                 yield db_1.pool.query(`UPDATE public.usuarios
-                 SET google_sub = $1, nombre = $2, apellido = $3, foto_url = $4,
+                 SET google_sub = $1, nombre = $2, apellido = $3,
+                     foto_url = CASE WHEN $4::text IS NOT NULL THEN $4 ELSE CASE WHEN foto_origen = 'GOOGLE' THEN NULL ELSE foto_url END END,
+                     foto_origen = CASE WHEN $4::text IS NOT NULL THEN 'GOOGLE' WHEN foto_origen = 'GOOGLE' THEN 'NONE' ELSE foto_origen END,
                      auth_provider = CASE WHEN password IS NULL THEN 'GOOGLE' ELSE auth_provider END,
                      last_activity = CURRENT_TIMESTAMP, last_login = CURRENT_TIMESTAMP
                  WHERE id = $5`, [payload.sub, payload.given_name || null, payload.family_name || null, payload.picture || user.foto_url || null, user.id]);
@@ -186,9 +208,9 @@ class AuthService {
                     username = `${baseUsername.slice(0, 75)}_${suffix++}`;
                 }
                 const created = yield db_1.pool.query(`INSERT INTO public.usuarios
-                 (usuario, correo, password, auth_provider, google_sub, nombre, apellido, foto_url, rol, last_activity, last_login)
-                 VALUES ($1, $2, NULL, 'GOOGLE', $3, $4, $5, $6, 'USUARIO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                 RETURNING id, usuario, correo, nombre, apellido, genero, foto_url, rol, session_version`, [username, payload.email, payload.sub, payload.given_name || null, payload.family_name || null, payload.picture || null]);
+                (usuario, correo, password, auth_provider, google_sub, nombre, apellido, foto_url, foto_origen, rol, last_activity, last_login)
+                 VALUES ($1, $2, NULL, 'GOOGLE', $3, $4, $5, $6, 'GOOGLE', 'USUARIO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                 RETURNING id, usuario, correo, nombre, apellido, genero, foto_url, foto_origen, rol, session_version`, [username, payload.email, payload.sub, payload.given_name || null, payload.family_name || null, payload.picture || null]);
                 user = created.rows[0];
             }
             const googleSession = yield db_1.pool.query(`UPDATE public.usuarios

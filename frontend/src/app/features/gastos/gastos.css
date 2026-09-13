@@ -65,7 +65,9 @@
 .gastos-content .row-actions button:hover, .gastos-content .secondary-action:hover { border-color: #1d5f9e; color: #134074; background: #eff6ff; }
 .gastos-content .row-actions button:last-child { color: #9f3f3f; }
 .gastos-content .empty-row { padding: 36px; color: #94a3b8; text-align: center; }
-.gastos-content .save-notification { position: fixed; z-index: 50; top: 24px; right: 24px; width: min(320px, calc(100vw - 48px)); margin: 0; border: 1px solid #9bd8bd; border-radius: 9px; padding: 12px 16px; color: #17624d; background: #e8f7ef; box-shadow: 0 14px 30px rgba(15,23,42,.16); font-size: .78rem; font-weight: 800; animation: notification-in .2s ease-out; }
+.gastos-content .save-notification, .gastos-content .floating-notification { position: fixed; z-index: 60; top: 24px; right: 24px; width: min(360px, calc(100vw - 48px)); margin: 0; border-radius: 10px; padding: 13px 16px; box-shadow: 0 14px 30px rgba(15,23,42,.18); font-size: .78rem; font-weight: 800; animation: notification-in .2s ease-out; }
+.gastos-content .save-notification { border: 1px solid #9bd8bd; color: #17624d; background: #e8f7ef; }
+.gastos-content .floating-notification-error { border: 1px solid #f0aaa4; color: #991b1b; background: #fff1f0; }
 .gastos-content .income-modal-backdrop { position: fixed; z-index: 30; inset: 0; display: grid; place-items: center; padding: 22px; background: rgba(11,37,69,.56); }
 .gastos-content .income-modal { width: min(100%, 520px); max-height: calc(100vh - 44px); overflow-y: auto; border: 1px solid #d7e4f3; border-radius: 18px; padding: 22px 22px 18px; background: linear-gradient(180deg, #fff 0%, #f9fbff 100%); box-shadow: 0 24px 60px rgba(15,23,42,.22); }
 .gastos-content .modal-heading { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; }
@@ -111,5 +113,6 @@
 .gastos-content.dark-mode .disponible-preview { color: #e5edf7; background: #203b4b; }
 .gastos-content.dark-mode .deuda-fields small { color: #a9b8ca; }
 .gastos-content.dark-mode .save-notification { border-color: #3e8c6d; color: #a8e0c4; background: #173b30; }
+.gastos-content.dark-mode .floating-notification-error { border-color: #9b4b52; color: #ffd0d0; background: #431f2a; }
 @keyframes notification-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
 @media (max-width: 720px) { .gastos-content .income-page-header, .gastos-content .table-toolbar { align-items: flex-start; flex-direction: column; } .gastos-content .income-summary { grid-template-columns: 1fr; } .gastos-content .income-modal-backdrop { padding: 14px; } .gastos-content .conversion-pairs, .gastos-content .amount-field-row { grid-template-columns: 1fr; } .gastos-content .modal-actions { flex-direction: column-reverse; } .gastos-content .modal-actions button { width: 100%; } }

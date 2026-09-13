@@ -17,6 +17,7 @@ CREATE TABLE usuarios (
     apellido VARCHAR(100),
     genero VARCHAR(30) CHECK (genero IS NULL OR UPPER(TRIM(genero)) IN ('FEMENINO', 'MASCULINO')),
     foto_url TEXT,
+    foto_origen VARCHAR(10) NOT NULL DEFAULT 'NONE',
     moneda VARCHAR(3) NOT NULL DEFAULT 'GTQ',
     tema VARCHAR(10) NOT NULL DEFAULT 'CLARO',
     rol VARCHAR(50) DEFAULT 'USUARIO',
@@ -29,6 +30,9 @@ CREATE TABLE ingresos (
     fecha DATE NOT NULL,
     descripcion VARCHAR(255) NOT NULL,
     lugar VARCHAR(255) NOT NULL,
+    monto NUMERIC(12, 3) NOT NULL,
+    moneda VARCHAR(3) NOT NULL DEFAULT 'GTQ' CHECK (moneda IN ('GTQ', 'USD')),
+    moneda_destino VARCHAR(3) NOT NULL DEFAULT 'USD' CHECK (moneda_destino IN ('GTQ', 'USD')),
     original VARCHAR(50) NOT NULL,
     conversion VARCHAR(50) NOT NULL
 );
@@ -41,9 +45,9 @@ CREATE TABLE gastos (
     lugar VARCHAR(255),
     categoria VARCHAR(80) NOT NULL,
     tipo VARCHAR(20) NOT NULL DEFAULT 'VARIABLE' CHECK (tipo IN ('FIJO', 'VARIABLE')),
-    monto NUMERIC(12, 2) NOT NULL CHECK (monto > 0),
+    monto NUMERIC(12, 3) NOT NULL CHECK (monto > 0),
     moneda VARCHAR(3) NOT NULL DEFAULT 'GTQ' CHECK (moneda IN ('GTQ', 'USD')),
-    total_deuda NUMERIC(12, 2) CHECK (total_deuda IS NULL OR total_deuda >= 0),
+    total_deuda NUMERIC(12, 3) CHECK (total_deuda IS NULL OR total_deuda >= 0),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -55,7 +59,7 @@ CREATE TABLE eventos (
     invitados INTEGER CHECK (invitados IS NULL OR invitados >= 0),
     lugar VARCHAR(255),
     fecha DATE NOT NULL,
-    presupuesto NUMERIC(12, 2) NOT NULL CHECK (presupuesto >= 0),
+    presupuesto NUMERIC(12, 3) NOT NULL CHECK (presupuesto >= 0),
     estado VARCHAR(30) NOT NULL DEFAULT 'PLANIFICADO',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

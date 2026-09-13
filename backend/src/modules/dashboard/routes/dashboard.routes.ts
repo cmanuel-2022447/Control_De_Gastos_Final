@@ -1,3 +1,7 @@
+// Rutas del dashboard.
+// Exponen el resumen financiero del usuario autenticado para cargar saldo, gastos,
+// deuda y presupuesto en la pantalla principal.
+
 import { Router } from 'express';
 import { authenticateToken } from '../../../middleware/errorHandles';
 import { getSummary } from '../controller/dashboard.controller';

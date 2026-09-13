@@ -1,3 +1,6 @@
+// Rutas de autenticación y perfil del usuario.
+// Aquí se exponen endpoints para login, registro, Google OAuth, logout y consulta/edición del perfil.
+
 import { Router } from 'express';
 import { AuthController } from '../controller/auth.controller';
 import { authenticateToken } from '../../../middleware/errorHandles';

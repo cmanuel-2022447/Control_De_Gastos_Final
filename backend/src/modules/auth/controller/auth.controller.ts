@@ -1,3 +1,7 @@
+// Controlador de autenticación.
+// Maneja la lógica HTTP para login local, registro, Google, logout y perfil del usuario.
+// Se encarga de responder con mensajes claros según el tipo de error que genere el servicio.
+
 import { Request, Response } from 'express';
 import { AuthService } from '../services/auth.service';
 import { AuthenticatedRequest } from '../../../middleware/errorHandles';
@@ -23,6 +27,7 @@ export class AuthController {
             if (error instanceof Error && error.message === 'GOOGLE_AUTH_DISABLED') return res.status(503).json({ message: 'El inicio de sesión con Google no está disponible' });
             if (error instanceof Error && error.message === 'GOOGLE_ACCOUNT_CONFLICT') return res.status(409).json({ message: 'La cuenta de Google no coincide con la cuenta existente' });
             if (error instanceof Error && ['GOOGLE_TOKEN_INVALID', 'GOOGLE_ACCOUNT_INVALID'].includes(error.message)) return res.status(401).json({ message: 'No fue posible validar la cuenta de Google' });
+            if (error instanceof Error && error.message === 'INVALID_PROFILE_PHOTO') return res.status(400).json({ message: 'La foto de perfil no es válida' });
             return res.status(503).json({ message: 'No fue posible iniciar sesión con Google' });
         }
     }
@@ -50,7 +55,10 @@ export class AuthController {
         if (!req.user?.id) return res.status(401).json({ message: 'Usuario no autenticado' });
         try {
             return res.json(await AuthService.updateProfile(Number(req.user.id), req.body));
-        } catch {
+        } catch (error) {
+            if (error instanceof Error && error.message === 'INVALID_PROFILE_PHOTO') {
+                return res.status(400).json({ message: 'La foto de perfil no es válida' });
+            }
             return res.status(500).json({ message: 'No fue posible actualizar el perfil' });
         }
     }

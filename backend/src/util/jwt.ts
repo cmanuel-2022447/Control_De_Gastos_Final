@@ -1,3 +1,7 @@
+// Utilidad para crear y verificar JWT del sistema.
+// El token identifica al usuario autenticado y lleva datos como id, correo,
+// rol y version de sesión para controlar acceso y expiración.
+
 import dotenv from 'dotenv';
 import jwt, { JwtPayload, SignOptions } from 'jsonwebtoken';
 

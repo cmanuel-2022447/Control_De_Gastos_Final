@@ -11,78 +11,78 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.clearIngresos = exports.deleteIngreso = exports.updateIngreso = exports.saveIngreso = exports.getAllIngresos = void 0;
 const db_1 = require("../../../config/db");
+const money_1 = require("../../../util/money");
 const getAllIngresos = (usuarioId) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield db_1.pool.query(`SELECT id, fecha, descripcion, lugar, original, conversion
+    const result = yield db_1.pool.query(`SELECT id, fecha, descripcion, lugar, monto::text, moneda, moneda_destino, original, conversion
     FROM public.ingresos
     WHERE usuario_id = $1
     ORDER BY fecha ASC, id ASC`, [usuarioId]);
-    return result.rows.map((row) => (Object.assign(Object.assign({}, row), { original: String(row.original), conversion: String(row.conversion) })));
+    return result.rows.map((row) => (Object.assign(Object.assign({}, row), { monto: String(row.monto), original: String(row.original), conversion: String(row.conversion) })));
 });
 exports.getAllIngresos = getAllIngresos;
 const saveIngreso = (usuarioId, data) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
     const fecha = String((data === null || data === void 0 ? void 0 : data.fecha) || '').trim();
     const descripcion = String((data === null || data === void 0 ? void 0 : data.descripcion) || '').trim();
     const lugar = String((data === null || data === void 0 ? void 0 : data.lugar) || '').trim();
     const moneda = String((data === null || data === void 0 ? void 0 : data.moneda) || 'GTQ').trim().toUpperCase();
     const monedaDestino = String((data === null || data === void 0 ? void 0 : data.monedaDestino) || (moneda === 'USD' ? 'GTQ' : 'USD')).trim().toUpperCase();
-    const monto = Number(data === null || data === void 0 ? void 0 : data.monto);
-    const tasaCambio = Number((_b = (_a = data === null || data === void 0 ? void 0 : data.tasa_cambio) !== null && _a !== void 0 ? _a : data === null || data === void 0 ? void 0 : data.tasaCambio) !== null && _b !== void 0 ? _b : 7.68);
-    if (!fecha || !descripcion || !lugar || !Number.isFinite(monto) || monto <= 0) {
+    const monto = (0, money_1.parseMoney)(data === null || data === void 0 ? void 0 : data.monto);
+    if (!fecha || !descripcion || !lugar || !monto)
         throw new Error('INVALID_INCOME_DATA');
-    }
     if (!['GTQ', 'USD'].includes(moneda) || !['GTQ', 'USD'].includes(monedaDestino)) {
-        throw new Error('INVALID_INCOME_DATA');
+        throw new Error('INVALID_CURRENCY');
     }
-    const montoConvertido = moneda === monedaDestino
-        ? monto
-        : moneda === 'USD' && monedaDestino === 'GTQ'
-            ? monto * tasaCambio
-            : monto / tasaCambio;
-    const original = `${moneda} ${monto.toFixed(2)}`;
-    const conversion = `${monedaDestino} ${montoConvertido.toFixed(2)}`;
-    const result = yield db_1.pool.query(`INSERT INTO public.ingresos (usuario_id, fecha, descripcion, lugar, original, conversion)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     RETURNING id, fecha, descripcion, lugar, original, conversion`, [usuarioId, fecha, descripcion, lugar, original, conversion]);
+    const fechaResult = yield db_1.pool.query('SELECT $1::date = CURRENT_DATE AS es_hoy', [fecha]);
+    if (!fechaResult.rows[0].es_hoy)
+        throw new Error('INCOME_DATE_NOT_TODAY');
+    const conversionResult = yield db_1.pool.query(`SELECT CASE WHEN $1::text = $2::text THEN $3::numeric
+                 WHEN $1::text = 'USD' THEN $3::numeric * 7.68::numeric
+                 ELSE $3::numeric / 7.68::numeric END AS monto_convertido`, [moneda, monedaDestino, monto]);
+    const original = `${moneda} ${monto}`;
+    const conversion = `${monedaDestino} ${String(conversionResult.rows[0].monto_convertido)}`;
+    const result = yield db_1.pool.query(`INSERT INTO public.ingresos (usuario_id, fecha, descripcion, lugar, monto, moneda, moneda_destino, original, conversion)
+     VALUES ($1, $2, $3, $4, $5::numeric, $6, $7, $8, $9)
+     RETURNING id, fecha, descripcion, lugar, monto::text, moneda, moneda_destino, original, conversion`, [usuarioId, fecha, descripcion, lugar, monto, moneda, monedaDestino, original, conversion]);
     const row = result.rows[0];
-    return Object.assign(Object.assign({}, row), { original: String(row.original), conversion: String(row.conversion) });
+    return Object.assign(Object.assign({}, row), { monto: String(row.monto), original: String(row.original), conversion: String(row.conversion) });
 });
 exports.saveIngreso = saveIngreso;
 const updateIngreso = (usuarioId, id, data) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
     const fecha = String((data === null || data === void 0 ? void 0 : data.fecha) || '').trim();
     const descripcion = String((data === null || data === void 0 ? void 0 : data.descripcion) || '').trim();
     const lugar = String((data === null || data === void 0 ? void 0 : data.lugar) || '').trim();
     const moneda = String((data === null || data === void 0 ? void 0 : data.moneda) || 'GTQ').trim().toUpperCase();
     const monedaDestino = String((data === null || data === void 0 ? void 0 : data.monedaDestino) || (moneda === 'USD' ? 'GTQ' : 'USD')).trim().toUpperCase();
-    const monto = Number(data === null || data === void 0 ? void 0 : data.monto);
-    const tasaCambio = Number((_b = (_a = data === null || data === void 0 ? void 0 : data.tasa_cambio) !== null && _a !== void 0 ? _a : data === null || data === void 0 ? void 0 : data.tasaCambio) !== null && _b !== void 0 ? _b : 7.68);
-    if (!fecha || !descripcion || !lugar || !Number.isFinite(monto) || monto <= 0) {
+    const monto = (0, money_1.parseMoney)(data === null || data === void 0 ? void 0 : data.monto);
+    if (!fecha || !descripcion || !lugar || !monto)
         throw new Error('INVALID_INCOME_DATA');
-    }
     if (!['GTQ', 'USD'].includes(moneda) || !['GTQ', 'USD'].includes(monedaDestino)) {
-        throw new Error('INVALID_INCOME_DATA');
+        throw new Error('INVALID_CURRENCY');
     }
-    const montoConvertido = moneda === monedaDestino
-        ? monto
-        : moneda === 'USD' && monedaDestino === 'GTQ'
-            ? monto * tasaCambio
-            : monto / tasaCambio;
-    const original = `${moneda} ${monto.toFixed(2)}`;
-    const conversion = `${monedaDestino} ${montoConvertido.toFixed(2)}`;
+    const fechaResult = yield db_1.pool.query('SELECT $1::date = CURRENT_DATE AS es_hoy', [fecha]);
+    if (!fechaResult.rows[0].es_hoy)
+        throw new Error('INCOME_DATE_NOT_TODAY');
+    const conversionResult = yield db_1.pool.query(`SELECT CASE WHEN $1::text = $2::text THEN $3::numeric
+                 WHEN $1::text = 'USD' THEN $3::numeric * 7.68::numeric
+                 ELSE $3::numeric / 7.68::numeric END AS monto_convertido`, [moneda, monedaDestino, monto]);
+    const original = `${moneda} ${monto}`;
+    const conversion = `${monedaDestino} ${String(conversionResult.rows[0].monto_convertido)}`;
     const result = yield db_1.pool.query(`UPDATE public.ingresos
-     SET fecha = $1,
+    SET fecha = $1,
          descripcion = $2,
          lugar = $3,
-         original = $4,
-         conversion = $5
-    WHERE id = $6 AND usuario_id = $7
-     RETURNING id, fecha, descripcion, lugar, original, conversion`, [fecha, descripcion, lugar, original, conversion, id, usuarioId]);
+        monto = $4::numeric,
+        moneda = $5,
+        moneda_destino = $6,
+        original = $7,
+        conversion = $8
+      WHERE id = $9 AND usuario_id = $10
+    RETURNING id, fecha, descripcion, lugar, monto::text, moneda, moneda_destino, original, conversion`, [fecha, descripcion, lugar, monto, moneda, monedaDestino, original, conversion, id, usuarioId]);
     if (result.rowCount === 0) {
         throw new Error('INCOME_NOT_FOUND');
     }
     const row = result.rows[0];
-    return Object.assign(Object.assign({}, row), { original: String(row.original), conversion: String(row.conversion) });
+    return Object.assign(Object.assign({}, row), { monto: String(row.monto), original: String(row.original), conversion: String(row.conversion) });
 });
 exports.updateIngreso = updateIngreso;
 const deleteIngreso = (usuarioId, id) => __awaiter(void 0, void 0, void 0, function* () {

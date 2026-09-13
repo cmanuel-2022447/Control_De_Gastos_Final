@@ -1,6 +1,7 @@
-// Configuracion principal de la aplicacion Express
-// Inicializa middleware CORS y manejo de JSON
-// Define las rutas principales del servidor
+// Configuración principal del servidor Express.
+// Este archivo levanta la API del proyecto, habilita CORS para Angular,
+// parsea JSON y registra cada módulo de la aplicación.
+// Es el punto de entrada del backend y conecta el sistema completo.
 
 import express from 'express';
 import cors from 'cors';

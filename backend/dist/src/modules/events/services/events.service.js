@@ -11,6 +11,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteEvent = exports.updateEvent = exports.createEvent = exports.getEvents = void 0;
 const db_1 = require("../../../config/db");
+const money_1 = require("../../../util/money");
 const getEvents = (usuarioId) => __awaiter(void 0, void 0, void 0, function* () {
     const result = yield db_1.pool.query(`SELECT e.id, e.nombre, e.tipo, e.invitados, e.lugar, e.fecha, e.presupuesto, e.estado,
           0 AS gastado
@@ -26,13 +27,13 @@ const createEvent = (usuarioId, data) => __awaiter(void 0, void 0, void 0, funct
     const lugar = String((data === null || data === void 0 ? void 0 : data.lugar) || '').trim() || null;
     const invitados = (data === null || data === void 0 ? void 0 : data.invitados) === '' || (data === null || data === void 0 ? void 0 : data.invitados) === undefined || (data === null || data === void 0 ? void 0 : data.invitados) === null ? null : Number(data.invitados);
     const fecha = String((data === null || data === void 0 ? void 0 : data.fecha) || '').trim();
-    const presupuesto = Number(data === null || data === void 0 ? void 0 : data.presupuesto);
-    if (!nombre || !tipo || !fecha || !Number.isFinite(presupuesto) || presupuesto < 0 || (invitados !== null && (!Number.isInteger(invitados) || invitados < 0)))
+    const presupuesto = (0, money_1.parseMoney)(data === null || data === void 0 ? void 0 : data.presupuesto, true);
+    if (!nombre || !tipo || !fecha || !presupuesto || (invitados !== null && (!Number.isInteger(invitados) || invitados < 0)))
         throw new Error('INVALID_EVENT_DATA');
     const result = yield db_1.pool.query(`INSERT INTO eventos (usuario_id, nombre, tipo, invitados, lugar, fecha, presupuesto)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING id, nombre, tipo, invitados, lugar, fecha, presupuesto, estado`, [usuarioId, nombre, tipo, invitados, lugar, fecha, presupuesto]);
-    return Object.assign(Object.assign({}, result.rows[0]), { presupuesto: Number(result.rows[0].presupuesto), gastado: 0 });
+    VALUES ($1, $2, $3, $4, $5, $6, $7::numeric)
+    RETURNING id, nombre, tipo, invitados, lugar, fecha, presupuesto::text, estado`, [usuarioId, nombre, tipo, invitados, lugar, fecha, presupuesto]);
+    return Object.assign(Object.assign({}, result.rows[0]), { presupuesto: String(result.rows[0].presupuesto), gastado: 0 });
 });
 exports.createEvent = createEvent;
 const updateEvent = (usuarioId, eventId, data) => __awaiter(void 0, void 0, void 0, function* () {
@@ -41,16 +42,16 @@ const updateEvent = (usuarioId, eventId, data) => __awaiter(void 0, void 0, void
     const lugar = String((data === null || data === void 0 ? void 0 : data.lugar) || '').trim() || null;
     const invitados = (data === null || data === void 0 ? void 0 : data.invitados) === '' || (data === null || data === void 0 ? void 0 : data.invitados) === undefined || (data === null || data === void 0 ? void 0 : data.invitados) === null ? null : Number(data.invitados);
     const fecha = String((data === null || data === void 0 ? void 0 : data.fecha) || '').trim();
-    const presupuesto = Number(data === null || data === void 0 ? void 0 : data.presupuesto);
+    const presupuesto = (0, money_1.parseMoney)(data === null || data === void 0 ? void 0 : data.presupuesto, true);
     const estado = String((data === null || data === void 0 ? void 0 : data.estado) || 'PLANIFICADO').trim().toUpperCase();
-    if (!nombre || !tipo || !fecha || !Number.isFinite(presupuesto) || presupuesto < 0 || (invitados !== null && (!Number.isInteger(invitados) || invitados < 0)))
+    if (!nombre || !tipo || !fecha || !presupuesto || (invitados !== null && (!Number.isInteger(invitados) || invitados < 0)))
         throw new Error('INVALID_EVENT_DATA');
-    const result = yield db_1.pool.query(`UPDATE eventos SET nombre = $1, tipo = $2, invitados = $3, lugar = $4, fecha = $5, presupuesto = $6, estado = $7
+    const result = yield db_1.pool.query(`UPDATE eventos SET nombre = $1, tipo = $2, invitados = $3, lugar = $4, fecha = $5, presupuesto = $6::numeric, estado = $7
      WHERE id = $8 AND usuario_id = $9
-     RETURNING id, nombre, tipo, invitados, lugar, fecha, presupuesto, estado`, [nombre, tipo, invitados, lugar, fecha, presupuesto, estado, eventId, usuarioId]);
+    RETURNING id, nombre, tipo, invitados, lugar, fecha, presupuesto::text, estado`, [nombre, tipo, invitados, lugar, fecha, presupuesto, estado, eventId, usuarioId]);
     if (!result.rowCount)
         throw new Error('EVENT_NOT_FOUND');
-    return Object.assign(Object.assign({}, result.rows[0]), { presupuesto: Number(result.rows[0].presupuesto) });
+    return Object.assign(Object.assign({}, result.rows[0]), { presupuesto: String(result.rows[0].presupuesto) });
 });
 exports.updateEvent = updateEvent;
 const deleteEvent = (usuarioId, eventId) => __awaiter(void 0, void 0, void 0, function* () {
