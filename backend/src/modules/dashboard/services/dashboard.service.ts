@@ -1,3 +1,7 @@
+// Servicio del dashboard.
+// Calcula el resumen financiero con consultas SQL agrupadas por usuario.
+// Aquí se evalúan ingresos, gastos, gastos fijos, deuda pendiente y presupuesto general.
+
 import { pool } from '../../../config/db';
 import { convertMoneySql } from '../../../util/money';
 

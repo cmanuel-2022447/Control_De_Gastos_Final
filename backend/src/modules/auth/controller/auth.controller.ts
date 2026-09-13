@@ -1,3 +1,7 @@
+// Controlador de autenticación.
+// Maneja la lógica HTTP para login local, registro, Google, logout y perfil del usuario.
+// Se encarga de responder con mensajes claros según el tipo de error que genere el servicio.
+
 import { Request, Response } from 'express';
 import { AuthService } from '../services/auth.service';
 import { AuthenticatedRequest } from '../../../middleware/errorHandles';

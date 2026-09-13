@@ -1,3 +1,7 @@
+// Controlador del resumen del dashboard.
+// Responde con los valores agregados del usuario para mostrar ingresos, gastos,
+// deuda pendiente, presupuesto y dinero restante.
+
 import { Response } from 'express';
 import { AuthenticatedRequest } from '../../../middleware/errorHandles';
 import { getDashboardSummary } from '../services/dashboard.service';

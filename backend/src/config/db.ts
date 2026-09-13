@@ -1,3 +1,8 @@
+// Centro de conexión con PostgreSQL.
+// Este archivo crea el pool principal que usan todos los servicios del backend.
+// Además prepara la base de datos con tablas y columnas necesarias para usuarios,
+// ingresos, gastos y eventos. Es la capa de persistencia del proyecto.
+
 import dotenv from 'dotenv';
 import { Pool } from 'pg';
 

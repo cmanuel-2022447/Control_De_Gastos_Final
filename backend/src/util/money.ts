@@ -1,3 +1,7 @@
+// Funciones auxiliares para validar y normalizar montos monetarios.
+// Se usa para asegurar que los valores que llegan a la base de datos tengan
+// formato consistente y evitar errores de conversión en ingresos y gastos.
+
 export const MONEY_PATTERN = /^(?:0|[1-9]\d*)(?:\.\d{1,3})?$/;
 
 export function parseMoney(value: unknown, allowZero = false): string | null {
