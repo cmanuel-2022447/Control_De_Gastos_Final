@@ -1,4 +1,5 @@
 import { pool } from '../../../config/db';
+import { parseMoney } from '../../../util/money';
 
 export const getEvents = async (usuarioId: number) => {
   const result = await pool.query(
@@ -18,15 +19,15 @@ export const createEvent = async (usuarioId: number, data: any) => {
   const lugar = String(data?.lugar || '').trim() || null;
   const invitados = data?.invitados === '' || data?.invitados === undefined || data?.invitados === null ? null : Number(data.invitados);
   const fecha = String(data?.fecha || '').trim();
-  const presupuesto = Number(data?.presupuesto);
-  if (!nombre || !tipo || !fecha || !Number.isFinite(presupuesto) || presupuesto < 0 || (invitados !== null && (!Number.isInteger(invitados) || invitados < 0))) throw new Error('INVALID_EVENT_DATA');
+  const presupuesto = parseMoney(data?.presupuesto, true);
+  if (!nombre || !tipo || !fecha || !presupuesto || (invitados !== null && (!Number.isInteger(invitados) || invitados < 0))) throw new Error('INVALID_EVENT_DATA');
   const result = await pool.query(
     `INSERT INTO eventos (usuario_id, nombre, tipo, invitados, lugar, fecha, presupuesto)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING id, nombre, tipo, invitados, lugar, fecha, presupuesto, estado`,
+    VALUES ($1, $2, $3, $4, $5, $6, $7::numeric)
+    RETURNING id, nombre, tipo, invitados, lugar, fecha, presupuesto::text, estado`,
     [usuarioId, nombre, tipo, invitados, lugar, fecha, presupuesto]
   );
-  return { ...result.rows[0], presupuesto: Number(result.rows[0].presupuesto), gastado: 0 };
+  return { ...result.rows[0], presupuesto: String(result.rows[0].presupuesto), gastado: 0 };
 };
 
 export const updateEvent = async (usuarioId: number, eventId: number, data: any) => {
@@ -35,17 +36,17 @@ export const updateEvent = async (usuarioId: number, eventId: number, data: any)
   const lugar = String(data?.lugar || '').trim() || null;
   const invitados = data?.invitados === '' || data?.invitados === undefined || data?.invitados === null ? null : Number(data.invitados);
   const fecha = String(data?.fecha || '').trim();
-  const presupuesto = Number(data?.presupuesto);
+  const presupuesto = parseMoney(data?.presupuesto, true);
   const estado = String(data?.estado || 'PLANIFICADO').trim().toUpperCase();
-  if (!nombre || !tipo || !fecha || !Number.isFinite(presupuesto) || presupuesto < 0 || (invitados !== null && (!Number.isInteger(invitados) || invitados < 0))) throw new Error('INVALID_EVENT_DATA');
+  if (!nombre || !tipo || !fecha || !presupuesto || (invitados !== null && (!Number.isInteger(invitados) || invitados < 0))) throw new Error('INVALID_EVENT_DATA');
   const result = await pool.query(
-    `UPDATE eventos SET nombre = $1, tipo = $2, invitados = $3, lugar = $4, fecha = $5, presupuesto = $6, estado = $7
+    `UPDATE eventos SET nombre = $1, tipo = $2, invitados = $3, lugar = $4, fecha = $5, presupuesto = $6::numeric, estado = $7
      WHERE id = $8 AND usuario_id = $9
-     RETURNING id, nombre, tipo, invitados, lugar, fecha, presupuesto, estado`,
+    RETURNING id, nombre, tipo, invitados, lugar, fecha, presupuesto::text, estado`,
     [nombre, tipo, invitados, lugar, fecha, presupuesto, estado, eventId, usuarioId]
   );
   if (!result.rowCount) throw new Error('EVENT_NOT_FOUND');
-  return { ...result.rows[0], presupuesto: Number(result.rows[0].presupuesto) };
+  return { ...result.rows[0], presupuesto: String(result.rows[0].presupuesto) };
 };
 
 export const deleteEvent = async (usuarioId: number, eventId: number) => {

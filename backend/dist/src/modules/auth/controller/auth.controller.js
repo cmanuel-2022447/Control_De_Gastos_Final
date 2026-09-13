@@ -38,6 +38,8 @@ class AuthController {
                     return res.status(409).json({ message: 'La cuenta de Google no coincide con la cuenta existente' });
                 if (error instanceof Error && ['GOOGLE_TOKEN_INVALID', 'GOOGLE_ACCOUNT_INVALID'].includes(error.message))
                     return res.status(401).json({ message: 'No fue posible validar la cuenta de Google' });
+                if (error instanceof Error && error.message === 'INVALID_PROFILE_PHOTO')
+                    return res.status(400).json({ message: 'La foto de perfil no es válida' });
                 return res.status(503).json({ message: 'No fue posible iniciar sesión con Google' });
             }
         });
@@ -75,7 +77,10 @@ class AuthController {
             try {
                 return res.json(yield auth_service_1.AuthService.updateProfile(Number(req.user.id), req.body));
             }
-            catch (_b) {
+            catch (error) {
+                if (error instanceof Error && error.message === 'INVALID_PROFILE_PHOTO') {
+                    return res.status(400).json({ message: 'La foto de perfil no es válida' });
+                }
                 return res.status(500).json({ message: 'No fue posible actualizar el perfil' });
             }
         });
