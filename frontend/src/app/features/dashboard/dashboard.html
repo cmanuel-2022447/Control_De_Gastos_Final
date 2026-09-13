@@ -63,7 +63,7 @@
         <section class="summary-card">
           <p class="eyebrow">RESUMEN DE HOY</p>
           <article class="balance-card">
-            <div><span class="stat-label">DINERO RESTANTE</span><strong>Q {{ dineroRestante | number:'1.2-2' }}</strong></div>
+            <div><span class="stat-label">DINERO RESTANTE</span><strong>{{ simboloMoneda }} {{ dineroRestante | number:'1.2-2' }}</strong></div>
             <img src="assets/img/Dinero.png" alt="Dinero restante" />
           </article>
           <div class="summary-actions">
@@ -75,9 +75,9 @@
         <section class="extras-card">
           <div class="extras-heading"><h3>Extras</h3><div class="theme-switch"><button type="button" [class.selected]="modoOscuro" (click)="cambiarTema(true)"><img src="assets/img/Oscuro.png" alt="" /> Oscuro</button><button type="button" [class.selected]="!modoOscuro" (click)="cambiarTema(false)"><img src="assets/img/Claro.png" alt="" /> Claro</button></div></div>
           <div class="extra-cards">
-            <article class="extra-card spent-card"><span>Dinero gastado</span><strong>Q {{ dineroGastado | number:'1.2-2' }}</strong><img src="assets/img/Cartera.png" alt="" /></article>
-            <article class="extra-card debt-card"><span>Deuda pendiente<br />registrada</span><strong>Q {{ deudaPendiente | number:'1.2-2' }}</strong><img src="assets/img/Conchinito.png" alt="" /></article>
-            <article class="extra-card event-card"><span>Presupuesto para<br />el evento</span><strong>Q {{ presupuestoEvento | number:'1.2-2' }}</strong><small>{{ eventoDestacado?.nombre || 'Sin eventos' }}</small><img src="assets/img/Globos.png" alt="" /></article>
+            <article class="extra-card spent-card"><span>Dinero gastado</span><strong>{{ simboloMoneda }} {{ dineroGastado | number:'1.2-2' }}</strong><img src="assets/img/Cartera.png" alt="" /></article>
+            <article class="extra-card debt-card"><span>Deuda pendiente<br />registrada</span><strong>{{ simboloMoneda }} {{ deudaPendiente | number:'1.2-2' }}</strong><img src="assets/img/Conchinito.png" alt="" /></article>
+            <article class="extra-card event-card"><span>Presupuesto para<br />el evento</span><strong>{{ simboloMoneda }} {{ presupuestoEvento | number:'1.2-2' }}</strong><small>{{ eventoDestacado?.nombre || 'Sin eventos' }}</small><img src="assets/img/Globos.png" alt="" /></article>
           </div>
           <div *ngIf="eventosCargando" class="chart-status">Cargando eventos...</div>
           <div *ngIf="!eventosCargando && eventosError" class="chart-status">No fue posible obtener los eventos.</div>

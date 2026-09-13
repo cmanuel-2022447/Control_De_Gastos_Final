@@ -16,6 +16,8 @@
 .settings-menu { position: relative; margin-top: 0; }
 .nav-separator-footer { margin-top: 10px; margin-bottom: 0; }
 @media (max-width: 900px) { .nav-secondary { margin-top: 12px; } .nav-separator-footer { margin-top: 8px; } }
+@media (min-width: 1300px) and (min-aspect-ratio: 3/2) { .nav-secondary { margin-top: -6px; } .sidebar-footer { margin-bottom: -44px; } .dashboard-shell .sidebar-footer { bottom: 0; margin-bottom: 0; } }
+@media (min-width: 1600px) and (max-width: 2000px) and (min-height: 900px) and (max-height: 1200px) { .dashboard-shell .nav-secondary { margin-top: -30px; } .app-shell.dashboard-shell .sidebar-footer { bottom: 0; } }
 .nav-item:hover, .logout-button:hover { color: #fff; background: rgba(255,255,255,.1); }
 .nav-item:active, .logout-button:active { color: #fff; background: #1d5f9e; transform: scale(.98); }
 .nav-item.active { color: #fff; background: #1d5f9e; font-weight: 800; }
@@ -90,6 +92,7 @@
 .dark-mode .top-white-container .subtitle, .dark-mode .top-white-container .eyebrow { color: #a9b8ca; }
 .dark-mode .quick-search input { border-color: #526985; color: #e5edf7; background: #111b2c; box-shadow: 0 5px 14px rgba(0,0,0,.2); }
 .dark-mode .quick-search input::placeholder { color: #8fa2b8; }
+.dark-mode .search-icon { filter: brightness(0) invert(1); }
 .dark-mode .quick-search input:focus { border-color: #8bd3e6; box-shadow: 0 0 0 3px rgba(139,211,230,.16); }
 .dark-mode .search-results, .dark-mode .profile-popover, .dark-mode .settings-popover { border-color: #405570; color: #e5edf7; background: #1a2638; }
 .dark-mode .search-results button:hover { color: #8bd3e6; background: #24364e; }

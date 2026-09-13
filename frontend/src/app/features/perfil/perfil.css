@@ -10,6 +10,8 @@
  .profile-details strong { color: #134074; font: 400 1.5rem Georgia, serif; }
  .profile-details span { color: #475569; }
  .profile-details small { color: #64748b; }
+ .photo-picker { display: grid; gap: 6px; margin-bottom: 22px; color: #475569; font-size: .8rem; font-weight: 800; }
+ .photo-picker input { padding: 8px; }
  .admin-panel { margin: 0 0 22px; border: 1px solid #b8cde2; border-radius: 12px; padding: 14px 16px; color: #134074; background: #eef6ff; }
  .admin-panel h2 { margin: 5px 0; font: 400 1.2rem Georgia, serif; }
  .admin-panel p { margin: 0; color: #475569; font-size: .8rem; }
@@ -25,6 +27,7 @@
  .profile-page.dark-mode .profile-card { border-color: #33465f; background: #1a2638; box-shadow: 0 16px 35px rgba(0,0,0,.18); }
  .profile-page.dark-mode .profile-photo-loading { background: #24364e; }
  .profile-page.dark-mode input, .profile-page.dark-mode select { border-color: #405570; color: #e5edf7; background: #152236; }
+ .profile-page.dark-mode .photo-picker { color: #a9b8ca; }
  .profile-page.dark-mode input:hover, .profile-page.dark-mode select:hover { border-color: #526985; }
  .profile-page.dark-mode input:focus, .profile-page.dark-mode select:focus { border-color: #8bd3e6; outline: 2px solid rgba(139,211,230,.18); outline-offset: 1px; }
  .profile-page.dark-mode option { color: #e5edf7; background: #152236; }

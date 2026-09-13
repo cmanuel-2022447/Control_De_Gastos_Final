@@ -53,7 +53,8 @@ export class StrictInputDirective {
   private sanitizeDecimal(value: string): string {
     const normalized = value.replace(',', '.').replace(/[^0-9.]/g, '');
     const separator = normalized.indexOf('.');
-    return separator < 0 ? normalized : `${normalized.slice(0, separator)}.${normalized.slice(separator + 1).replace(/\./g, '')}`;
+    const decimals = normalized.slice(separator + 1).replace(/\./g, '');
+    return separator < 0 ? normalized : `${normalized.slice(0, separator)}.${decimals}`;
   }
 
   private isValidPartial(value: string): boolean {
