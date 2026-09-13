@@ -102,9 +102,7 @@ export class AppShellComponent implements OnInit, OnDestroy {
     private gastosService: GastosService,
     private eventosService: EventosService,
     private perfilService: PerfilService
-  ) {
-    this.modoOscuro = localStorage.getItem('tema') === 'OSCURO';
-  }
+  ) {}
 
   ngOnInit(): void {
     this.perfilService.tema$.subscribe((tema) => {
@@ -155,14 +153,12 @@ export class AppShellComponent implements OnInit, OnDestroy {
     this.sincronizacionSubscription?.unsubscribe();
   }
 
+  // Devuelve la imagen del usuario para el header o el shell de la aplicación.
+  // Si la foto falla al cargar, se activa el fallback para evitar que se muestre una imagen rota.
   get fotoPerfil(): string | null {
     if (this.perfilCargando || !this.perfilActual) return null;
 
     const fotoUrl = this.perfilActual.foto_url?.trim() || null;
-    if (this.perfilActual.auth_provider === 'GOOGLE' && fotoUrl) {
-      return fotoUrl;
-    }
-
     const rol = String(this.perfilActual.rol || 'USUARIO').toUpperCase();
     const genero = this.perfilActual.genero || null;
     const perfilBase = {
@@ -177,6 +173,7 @@ export class AppShellComponent implements OnInit, OnDestroy {
     return null;
   }
 
+  // Cuando la imagen no puede cargarse, se marca el estado para que la app use el avatar default.
   marcarErrorFotoPerfil(): void {
     this.fotoPerfilConError = true;
   }
@@ -188,7 +185,6 @@ export class AppShellComponent implements OnInit, OnDestroy {
   cambiarTema(modoOscuro: boolean): void {
     this.modoOscuro = modoOscuro;
     const tema = modoOscuro ? 'OSCURO' : 'CLARO';
-    localStorage.setItem('tema', tema);
     if (this.perfilActual) {
       this.perfilService.actualizar({ tema }).subscribe();
     }

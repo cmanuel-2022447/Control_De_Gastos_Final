@@ -6,6 +6,7 @@ import { takeUntil } from 'rxjs/operators';
 import { AppShellComponent } from '../../shared/app-shell/app-shell.component';
 import { StrictInputDirective } from '../../shared/strict-input.directive';
 import { IngresosService, IngresoData } from '../../core/services/ingresos.service';
+import { PerfilService } from '../../core/services/perfil.service';
 
 @Component({
   selector: 'app-ingresos',
@@ -16,6 +17,7 @@ import { IngresosService, IngresoData } from '../../core/services/ingresos.servi
 })
 export class IngresosComponent implements OnInit, OnDestroy {
   readonly tasaCambio = 7.68;
+  moneda: 'GTQ' | 'USD' = 'GTQ';
   mostrarFormulario = false;
   mensaje = '';
   errorMessage = '';
@@ -29,10 +31,15 @@ export class IngresosComponent implements OnInit, OnDestroy {
 
   constructor(
     private ingresosService: IngresosService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private perfilService: PerfilService
   ) {}
 
   ngOnInit(): void {
+    this.perfilService.moneda$.pipe(takeUntil(this.destroy$)).subscribe((moneda) => {
+      this.moneda = moneda;
+      this.cdr.markForCheck();
+    });
     // Suscribirse a los ingresos del servicio compartido
     this.ingresosService.ingresos$
       .pipe(takeUntil(this.destroy$))
@@ -54,6 +61,13 @@ export class IngresosComponent implements OnInit, OnDestroy {
 
   get totalQuetzales(): number {
     return this.ingresos.reduce((total, ingreso) => total + this.aQuetzales(ingreso), 0);
+  }
+
+  get simboloMoneda(): string { return this.moneda === 'USD' ? '$' : 'Q'; }
+
+  convertirIngreso(ingreso: Ingreso): number {
+    const quetzales = this.aQuetzales(ingreso);
+    return this.moneda === 'USD' ? quetzales / this.tasaCambio : quetzales;
   }
 
   get montoConvertido(): number {
@@ -79,7 +93,7 @@ export class IngresosComponent implements OnInit, OnDestroy {
   }
 
   aQuetzales(ingreso: Ingreso): number {
-    return ingreso.moneda === 'USD' ? (ingreso.montoQuetzales ?? ingreso.monto * this.tasaCambio) : ingreso.monto;
+    return ingreso.moneda === 'USD' ? Number(ingreso.montoQuetzales ?? Number(ingreso.monto) * this.tasaCambio) : Number(ingreso.monto);
   }
 
   obtenerMontoConvertido(ingreso: Ingreso): number {
@@ -88,10 +102,10 @@ export class IngresosComponent implements OnInit, OnDestroy {
   }
 
   private montoConvertidoParaIngreso(ingreso: Ingreso): number {
-    if (ingreso.moneda === ingreso.monedaDestino) return ingreso.monto;
-    if (ingreso.moneda === 'USD' && ingreso.monedaDestino === 'GTQ') return ingreso.monto * this.tasaCambio;
-    if (ingreso.moneda === 'GTQ' && ingreso.monedaDestino === 'USD') return ingreso.monto / this.tasaCambio;
-    return ingreso.monto;
+    if (ingreso.moneda === ingreso.monedaDestino) return Number(ingreso.monto);
+    if (ingreso.moneda === 'USD' && ingreso.monedaDestino === 'GTQ') return Number(ingreso.monto) * this.tasaCambio;
+    if (ingreso.moneda === 'GTQ' && ingreso.monedaDestino === 'USD') return Number(ingreso.monto) / this.tasaCambio;
+    return Number(ingreso.monto);
   }
 
   private parseMonedaMonto(valor: string): { moneda: string; monto: number } {
@@ -122,10 +136,10 @@ export class IngresosComponent implements OnInit, OnDestroy {
   }
 
   guardarIngreso(): void {
-    const monto = Number(this.nuevoIngreso.monto) || 0;
+    const monto = String(this.nuevoIngreso.monto ?? '').trim();
     const textoValido = /^[A-Za-zÁÉÍÓÚáéíóúÑñÜü0-9 .,:'()/&-]+$/;
-    if (!this.nuevoIngreso.descripcion || !textoValido.test(this.nuevoIngreso.descripcion) || !this.nuevoIngreso.lugar || !textoValido.test(this.nuevoIngreso.lugar) || !/^\d{4}-\d{2}-\d{2}$/.test(this.nuevoIngreso.fecha) || monto <= 0 || !Number.isFinite(monto)) {
-      this.errorMessage = 'Completa los campos con el formato indicado y un monto mayor que cero.';
+    if (!this.nuevoIngreso.descripcion || !textoValido.test(this.nuevoIngreso.descripcion) || !this.nuevoIngreso.lugar || !textoValido.test(this.nuevoIngreso.lugar) || this.nuevoIngreso.fecha !== this.fechaLocal() || !/^(?:0|[1-9]\d*)(?:\.\d{1,3})?$/.test(monto) || /^0(?:\.0{1,3})?$/.test(monto)) {
+      this.errorMessage = this.nuevoIngreso.fecha !== this.fechaLocal() ? 'Los ingresos solo pueden registrarse con la fecha de hoy.' : !/^(?:0|[1-9]\d*)(?:\.\d{1,3})?$/.test(monto) ? 'El monto no puede tener más de 3 decimales.' : 'Completa los campos con el formato indicado y un monto mayor que cero.';
       return;
     }
     this.errorMessage = '';
@@ -191,7 +205,12 @@ export class IngresosComponent implements OnInit, OnDestroy {
   }
 
   private formularioVacio(): Ingreso {
-    return { id: 0, fecha: new Date().toISOString().slice(0, 10), descripcion: '', lugar: '', moneda: 'GTQ', monedaDestino: 'USD', monto: 0, montoQuetzales: 0 };
+    return { id: 0, fecha: this.fechaLocal(), descripcion: '', lugar: '', moneda: 'GTQ', monedaDestino: 'USD', monto: '0', montoQuetzales: '0' };
+  }
+
+  private fechaLocal(): string {
+    const hoy = new Date();
+    return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
   }
 }
 
@@ -202,7 +221,7 @@ interface Ingreso {
   lugar: string;
   moneda: 'GTQ' | 'USD';
   monedaDestino: 'GTQ' | 'USD';
-  monto: number;
-  montoQuetzales: number;
+  monto: string;
+  montoQuetzales: string;
   conversion?: string;
 }

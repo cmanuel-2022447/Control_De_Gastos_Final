@@ -8,6 +8,7 @@ import { IngresosService } from '../../core/services/ingresos.service';
 import { GastosService, GastoData } from '../../core/services/gastos.service';
 import { DashboardService } from '../../core/services/dashboard.service';
 import { EventoData, EventosService } from '../../core/services/eventos.service';
+import { PerfilService } from '../../core/services/perfil.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -22,13 +23,13 @@ import { EventoData, EventosService } from '../../core/services/eventos.service'
             <article class="balance-card">
               <div>
                 <span class="stat-label">DINERO RESTANTE</span>
-                <strong>Q {{ dineroRestante | number:'1.2-2' }}</strong>
+                <strong>{{ simboloMoneda }} {{ dineroRestante | number:'1.0-3' }}</strong>
               </div>
               <img src="assets/img/Dinero.png" alt="Dinero restante" />
             </article>
             <div class="income-chart-block">
               <div class="income-chart" [style.background]="graficaIngresos" role="img" aria-label="Gráfica circular de ingresos y gastos">
-                <div class="income-chart-center"><strong>Q {{ dineroRestante | number:'1.2-2' }}</strong><span>Dinero restante</span></div>
+                <div class="income-chart-center"><strong>{{ simboloMoneda }} {{ dineroRestante | number:'1.0-3' }}</strong><span>Dinero restante</span></div>
               </div>
               <div class="chart-legend">
                 <span><i class="legend-income"></i>Ingresos</span>
@@ -56,18 +57,17 @@ import { EventoData, EventosService } from '../../core/services/eventos.service'
             <div class="extra-cards">
               <article class="extra-card spent-card">
                 <span>Dinero gastado</span>
-                <strong>Q {{ dineroGastado | number:'1.2-2' }}</strong>
+                <strong>{{ simboloMoneda }} {{ dineroGastado | number:'1.0-3' }}</strong>
                 <img src="assets/img/Cartera.png" alt="" />
               </article>
               <article class="extra-card debt-card">
                 <span>Deuda pendiente<br />registrada</span>
-                <strong>Q {{ deudaPendiente | number:'1.2-2' }}</strong>
+                <strong>{{ simboloMoneda }} {{ deudaPendiente | number:'1.0-3' }}</strong>
                 <img src="assets/img/Conchinito.png" alt="" />
               </article>
               <article class="extra-card event-card">
                 <span>Presupuesto para<br />el evento</span>
-                <strong>Q {{ presupuestoEvento | number:'1.2-2' }}</strong>
-                <small>Boda</small>
+                <strong>{{ simboloMoneda }} {{ presupuestoEvento | number:'1.0-3' }}</strong>
                 <img src="assets/img/Globos.png" alt="" />
               </article>
             </div>
@@ -75,12 +75,12 @@ import { EventoData, EventosService } from '../../core/services/eventos.service'
               <div class="bar-item" *ngFor="let barra of barrasPresupuesto">
                 <span class="bar" [style.height.%]="barra.porcentaje" [title]="barra.etiqueta + ': Q ' + barra.monto"></span>
                 <small>{{ barra.etiqueta }}</small>
-                <em>Q {{ barra.monto }}</em>
+                <em>{{ simboloMoneda }} {{ barra.monto }}</em>
               </div>
               <div class="bar-item empty-bar" *ngFor="let referencia of barrasVacias" [class.hidden-bar]="barrasPresupuesto.length > 0">
                 <span class="bar" title="Sin presupuesto"></span>
                 <small>0</small>
-                <em>Q 0.00</em>
+                <em>{{ simboloMoneda }} 0.00</em>
               </div>
             </div>
           </section>
@@ -92,17 +92,20 @@ import { EventoData, EventosService } from '../../core/services/eventos.service'
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   readonly tasaCambio = 7.68;
+  moneda: 'GTQ' | 'USD' = 'GTQ';
+
+  get simboloMoneda(): string { return this.moneda === 'USD' ? '$' : 'Q'; }
 
   get dashboardSearchTerms(): Array<{ texto: string; selector: string; ruta: string }> {
     return [
       { texto: 'Dashboard', selector: '#dashboard-section', ruta: '/dashboard' },
       { texto: 'Resumen de hoy', selector: '#resumen-hoy', ruta: '/dashboard' },
-      { texto: `Dinero restante Q ${this.dineroRestante.toFixed(2)}`, selector: '#resumen-hoy', ruta: '/dashboard' },
-      { texto: `Ingresos Q ${this.totalIngresos.toFixed(2)}`, selector: '#resumen-hoy', ruta: '/dashboard' },
-      { texto: `Gastos Q ${this.totalGastos.toFixed(2)}`, selector: '#resumen-hoy', ruta: '/dashboard' },
-      { texto: `Dinero gastado Q ${this.dineroGastado.toFixed(2)}`, selector: '#extras-section', ruta: '/dashboard' },
-      { texto: `Deuda pendiente Q ${this.deudaPendiente.toFixed(2)}`, selector: '#extras-section', ruta: '/dashboard' },
-      { texto: `Presupuesto para el evento Q ${this.presupuestoEvento.toFixed(2)}`, selector: '#extras-section', ruta: '/dashboard' },
+      { texto: `Dinero restante ${this.simboloMoneda} ${this.dineroRestante}`, selector: '#resumen-hoy', ruta: '/dashboard' },
+      { texto: `Ingresos ${this.simboloMoneda} ${this.totalIngresos}`, selector: '#resumen-hoy', ruta: '/dashboard' },
+      { texto: `Gastos ${this.simboloMoneda} ${this.totalGastos}`, selector: '#resumen-hoy', ruta: '/dashboard' },
+      { texto: `Dinero gastado ${this.simboloMoneda} ${this.dineroGastado}`, selector: '#extras-section', ruta: '/dashboard' },
+      { texto: `Deuda pendiente ${this.simboloMoneda} ${this.deudaPendiente}`, selector: '#extras-section', ruta: '/dashboard' },
+      { texto: `Presupuesto para el evento ${this.simboloMoneda} ${this.presupuestoEvento}`, selector: '#extras-section', ruta: '/dashboard' },
       { texto: 'Extras', selector: '#extras-section', ruta: '/dashboard' },
       { texto: `Ingresos ${this.porcentajeIngresos}%`, selector: '#resumen-hoy', ruta: '/dashboard' }
     ];
@@ -128,10 +131,18 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private gastosService: GastosService,
     private dashboardService: DashboardService,
     private eventosService: EventosService,
+    private perfilService: PerfilService,
     private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
+    this.perfilService.moneda$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((moneda) => {
+        this.moneda = moneda;
+        this.actualizarBarras();
+        this.cdr.markForCheck();
+      });
     this.cargarResumenRemoto();
     this.eventosService.eventos$
       .pipe(takeUntil(this.destroy$))
@@ -170,13 +181,13 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private cargarResumenRemoto(): void {
     this.dashboardService.obtenerResumen().subscribe({
       next: (resumen) => {
-        this.totalIngresos = resumen.totalIngresos;
-        this.totalGastos = resumen.totalGastos;
-        this.dineroRestante = resumen.dineroRestante;
-        this.dineroGastado = resumen.totalGastos;
-        this.gastosFijos = resumen.gastosFijos;
-        this.deudaPendiente = resumen.deudaPendiente;
-        this.presupuestoEvento = resumen.presupuestoEvento;
+        this.totalIngresos = Number(resumen.totalIngresos);
+        this.totalGastos = Number(resumen.totalGastos);
+        this.dineroRestante = Number(resumen.dineroRestante);
+        this.dineroGastado = Number(resumen.totalGastos);
+        this.gastosFijos = Number(resumen.gastosFijos);
+        this.deudaPendiente = Number(resumen.deudaPendiente);
+        this.presupuestoEvento = Number(resumen.presupuestoEvento);
         this.actualizarGrafica();
         this.actualizarBarras();
         this.cdr.markForCheck();
@@ -193,7 +204,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private calcularTotalIngresos(ingresos: any[]): number {
     if (!ingresos?.length) return 0;
 
-    return ingresos.reduce((total, ingreso) => {
+    const totalQuetzales = ingresos.reduce((total, ingreso) => {
       const monto = ingreso.monto || 0;
       const moneda = ingreso.moneda || 'GTQ';
 
@@ -203,13 +214,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
       return total + Number(monto || 0);
     }, 0);
+    return this.convertirDesdeGtq(totalQuetzales);
   }
 
   private calcularTotalGastos(gastos: GastoData[]): number {
-    return (gastos || []).reduce((total, gasto) => {
+    const totalQuetzales = (gastos || []).reduce((total, gasto) => {
       const monto = Number(gasto.monto || 0);
       return total + (gasto.moneda === 'USD' ? monto * this.tasaCambio : monto);
     }, 0);
+    return this.convertirDesdeGtq(totalQuetzales);
   }
 
   private actualizarDineroRestante(): void {
@@ -226,17 +239,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (eventos) this.eventosActuales = eventos;
 
     const eventosActivos = this.eventosActuales.filter((evento) => evento.estado?.toUpperCase() !== 'CANCELADO');
-    const presupuestos = eventosActivos.map((evento) => Number(evento.presupuesto) || 0);
+    const presupuestos = eventosActivos.map((evento) => this.convertirDesdeGtq(Number(evento.presupuesto) || 0));
     const presupuestoMaximo = Math.max(...presupuestos, 0);
 
     this.barrasPresupuesto = eventosActivos.map((evento) => {
-      const presupuesto = Number(evento.presupuesto) || 0;
+      const presupuesto = this.convertirDesdeGtq(Number(evento.presupuesto) || 0);
       return {
         etiqueta: evento.nombre,
-        monto: presupuesto.toFixed(2),
+        monto: String(presupuesto),
         porcentaje: presupuestoMaximo > 0 ? (presupuesto / presupuestoMaximo) * 100 : 0
       };
     });
+  }
+
+  convertirDesdeGtq(monto: number): number {
+    return this.moneda === 'USD' ? monto / this.tasaCambio : monto;
   }
 
   private resetearTotales(): void {

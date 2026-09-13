@@ -57,6 +57,7 @@ function initializeDatabase() {
             apellido VARCHAR(100),
             genero VARCHAR(30),
             foto_url TEXT,
+            foto_origen VARCHAR(10) NOT NULL DEFAULT 'NONE',
             moneda VARCHAR(3) NOT NULL DEFAULT 'GTQ',
             tema VARCHAR(10) NOT NULL DEFAULT 'CLARO',
             rol VARCHAR(50) DEFAULT 'USUARIO',
@@ -69,6 +70,9 @@ function initializeDatabase() {
             fecha DATE NOT NULL,
             descripcion VARCHAR(255) NOT NULL,
             lugar VARCHAR(255) NOT NULL,
+            monto NUMERIC(12, 3),
+            moneda VARCHAR(3) CHECK (moneda IN ('GTQ', 'USD')),
+            moneda_destino VARCHAR(3) CHECK (moneda_destino IN ('GTQ', 'USD')),
             original VARCHAR(50) NOT NULL,
             conversion VARCHAR(50) NOT NULL
         );
@@ -81,9 +85,9 @@ function initializeDatabase() {
             lugar VARCHAR(255),
             categoria VARCHAR(80) NOT NULL,
             tipo VARCHAR(20) NOT NULL DEFAULT 'VARIABLE' CHECK (tipo IN ('FIJO', 'VARIABLE')),
-            monto NUMERIC(12, 2) NOT NULL CHECK (monto > 0),
+            monto NUMERIC(12, 3) NOT NULL CHECK (monto > 0),
             moneda VARCHAR(3) NOT NULL DEFAULT 'GTQ' CHECK (moneda IN ('GTQ', 'USD')),
-            total_deuda NUMERIC(12, 2) CHECK (total_deuda IS NULL OR total_deuda >= 0),
+            total_deuda NUMERIC(12, 3) CHECK (total_deuda IS NULL OR total_deuda >= 0),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -95,7 +99,7 @@ function initializeDatabase() {
             invitados INTEGER CHECK (invitados IS NULL OR invitados >= 0),
             lugar VARCHAR(255),
             fecha DATE NOT NULL,
-            presupuesto NUMERIC(12, 2) NOT NULL CHECK (presupuesto >= 0),
+            presupuesto NUMERIC(12, 3) NOT NULL CHECK (presupuesto >= 0),
             estado VARCHAR(30) NOT NULL DEFAULT 'PLANIFICADO',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
@@ -116,6 +120,32 @@ function initializeDatabase() {
 
         DROP TABLE IF EXISTS public.ahorros;
         DROP TABLE IF EXISTS public.deudas;
+    `);
+        yield exports.pool.query(`
+        ALTER TABLE IF EXISTS public.gastos
+        ALTER COLUMN monto TYPE NUMERIC(12, 3),
+        ALTER COLUMN total_deuda TYPE NUMERIC(12, 3);
+
+        ALTER TABLE IF EXISTS public.eventos
+        ALTER COLUMN presupuesto TYPE NUMERIC(12, 3);
+
+        ALTER TABLE IF EXISTS public.ingresos
+        ADD COLUMN IF NOT EXISTS monto NUMERIC(12, 3),
+        ADD COLUMN IF NOT EXISTS moneda VARCHAR(3),
+        ADD COLUMN IF NOT EXISTS moneda_destino VARCHAR(3);
+
+        UPDATE public.ingresos
+        SET moneda = COALESCE(NULLIF(SPLIT_PART(original, ' ', 1), ''), 'GTQ'),
+            moneda_destino = COALESCE(NULLIF(SPLIT_PART(conversion, ' ', 1), ''), 'USD'),
+            monto = COALESCE(NULLIF(SPLIT_PART(original, ' ', 2), '')::numeric, 0)
+        WHERE monto IS NULL;
+
+        ALTER TABLE IF EXISTS public.ingresos
+        ALTER COLUMN monto SET NOT NULL,
+        ALTER COLUMN moneda SET DEFAULT 'GTQ',
+        ALTER COLUMN moneda SET NOT NULL,
+        ALTER COLUMN moneda_destino SET DEFAULT 'USD',
+        ALTER COLUMN moneda_destino SET NOT NULL;
     `);
         yield exports.pool.query(`
         UPDATE public.gastos
@@ -144,6 +174,7 @@ function initializeDatabase() {
         ADD COLUMN IF NOT EXISTS apellido VARCHAR(100),
         ADD COLUMN IF NOT EXISTS genero VARCHAR(30),
         ADD COLUMN IF NOT EXISTS foto_url TEXT,
+        ADD COLUMN IF NOT EXISTS foto_origen VARCHAR(10) NOT NULL DEFAULT 'NONE',
         ADD COLUMN IF NOT EXISTS moneda VARCHAR(3) NOT NULL DEFAULT 'GTQ',
         ADD COLUMN IF NOT EXISTS tema VARCHAR(10) NOT NULL DEFAULT 'CLARO';
 

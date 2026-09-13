@@ -53,7 +53,9 @@ td strong { color: #334155; }
 .row-actions button:hover, .secondary-action:hover { border-color: #1d5f9e; color: #134074; background: #eff6ff; }
 .row-actions button:last-child { color: #9f3f3f; }
 .empty-row { padding: 36px; color: #94a3b8; text-align: center; }
-.save-notification { position: fixed; z-index: 50; top: 24px; right: 24px; width: min(320px, calc(100vw - 48px)); margin: 0; border: 1px solid #9bd8bd; border-radius: 9px; padding: 12px 16px; color: #17624d; background: #e8f7ef; box-shadow: 0 14px 30px rgba(15,23,42,.16); font-size: .78rem; font-weight: 800; animation: notification-in .2s ease-out; }
+.save-notification, .floating-notification { position: fixed; z-index: 60; top: 24px; right: 24px; width: min(360px, calc(100vw - 48px)); margin: 0; border-radius: 10px; padding: 13px 16px; box-shadow: 0 14px 30px rgba(15,23,42,.18); font-size: .78rem; font-weight: 800; animation: notification-in .2s ease-out; }
+.save-notification { border: 1px solid #9bd8bd; color: #17624d; background: #e8f7ef; }
+.floating-notification-error { border: 1px solid #f0aaa4; color: #991b1b; background: #fff1f0; }
 @keyframes notification-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
 .income-modal-backdrop { position: fixed; z-index: 30; inset: 0; display: grid; place-items: center; padding: 22px; background: rgba(11,37,69,.56); }
 .income-modal {
@@ -202,4 +204,5 @@ td strong { color: #334155; }
 .ingresos-content.dark-mode .input-with-unit input { color: #ffffff; }
 .ingresos-content.dark-mode .conversion-box { border-color: rgba(255,255,255,.18); background: rgba(17,27,44,.95); }
 .ingresos-content.dark-mode .conversion-box span, .ingresos-content.dark-mode .conversion-box strong, .ingresos-content.dark-mode .conversion-box small { color: #ffffff; }
+.ingresos-content.dark-mode .floating-notification-error { border-color: #9b4b52; color: #ffd0d0; background: #431f2a; }
 @media (max-width: 720px) { .income-page-header, .table-toolbar { align-items: flex-start; flex-direction: column; }.income-summary { grid-template-columns: 1fr; }.table-search, .table-search input { width: 100%; }.form-grid { grid-template-columns: 1fr; } }

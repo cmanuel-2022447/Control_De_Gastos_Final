@@ -11,9 +11,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteExpense = exports.updateExpense = exports.saveExpense = exports.getAllExpenses = void 0;
 const db_1 = require("../../../config/db");
+const money_1 = require("../../../util/money");
 const getAllExpenses = (usuarioId) => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield db_1.pool.query(`SELECT g.id, g.fecha, g.descripcion, g.lugar, g.categoria, g.tipo, g.monto, g.moneda,
-                    CASE WHEN g.categoria = 'Deuda' THEN deuda.total_deuda ELSE NULL END AS total_deuda
+    const result = yield db_1.pool.query(`SELECT g.id, g.fecha, g.descripcion, g.lugar, g.categoria, g.tipo, g.monto::text, g.moneda,
+                    CASE WHEN g.categoria = 'Deuda' THEN deuda.total_deuda::text ELSE NULL END AS total_deuda
                  FROM public.gastos g
                  LEFT JOIN LATERAL (
                     SELECT MAX(e.total_deuda) AS total_deuda
@@ -24,7 +25,7 @@ const getAllExpenses = (usuarioId) => __awaiter(void 0, void 0, void 0, function
                  ) deuda ON TRUE
          WHERE g.usuario_id = $1
          ORDER BY fecha DESC, id DESC`, [usuarioId]);
-    return result.rows.map((row) => (Object.assign(Object.assign({}, row), { monto: Number(row.monto), total_deuda: row.total_deuda === null ? null : Number(row.total_deuda) })));
+    return result.rows.map((row) => (Object.assign(Object.assign({}, row), { monto: String(row.monto), total_deuda: row.total_deuda === null ? null : String(row.total_deuda) })));
 });
 exports.getAllExpenses = getAllExpenses;
 const saveExpense = (usuarioId, data) => __awaiter(void 0, void 0, void 0, function* () {
@@ -34,19 +35,37 @@ const saveExpense = (usuarioId, data) => __awaiter(void 0, void 0, void 0, funct
     const categoria = String((data === null || data === void 0 ? void 0 : data.categoria) || '').trim();
     const tipo = String((data === null || data === void 0 ? void 0 : data.tipo) || 'VARIABLE').trim().toUpperCase();
     const moneda = String((data === null || data === void 0 ? void 0 : data.moneda) || 'GTQ').trim().toUpperCase();
-    const monto = Number(data === null || data === void 0 ? void 0 : data.monto);
+    const monto = (0, money_1.parseMoney)(data === null || data === void 0 ? void 0 : data.monto);
     const esDeuda = categoria.toUpperCase() === 'DEUDA';
-    const totalDeuda = esDeuda && (data === null || data === void 0 ? void 0 : data.total_deuda) !== '' && (data === null || data === void 0 ? void 0 : data.total_deuda) !== undefined && (data === null || data === void 0 ? void 0 : data.total_deuda) !== null ? Number(data.total_deuda) : null;
-    if (!fecha || !descripcion || !categoria || !['FIJO', 'VARIABLE'].includes(tipo) || !['GTQ', 'USD'].includes(moneda) || !Number.isFinite(monto) || monto <= 0 || (totalDeuda !== null && (!Number.isFinite(totalDeuda) || totalDeuda < 0))) {
+    const totalDeuda = esDeuda && (data === null || data === void 0 ? void 0 : data.total_deuda) !== '' && (data === null || data === void 0 ? void 0 : data.total_deuda) !== undefined && (data === null || data === void 0 ? void 0 : data.total_deuda) !== null ? (0, money_1.parseMoney)(data.total_deuda, true) : null;
+    if (!fecha || !descripcion || !categoria || !['FIJO', 'VARIABLE'].includes(tipo) || !['GTQ', 'USD'].includes(moneda) || !monto || ((data === null || data === void 0 ? void 0 : data.total_deuda) !== '' && (data === null || data === void 0 ? void 0 : data.total_deuda) !== undefined && (data === null || data === void 0 ? void 0 : data.total_deuda) !== null && !totalDeuda)) {
         throw new Error('INVALID_EXPENSE_DATA');
     }
     if (esDeuda && totalDeuda === null && !(yield existeTotalDeuda(usuarioId, descripcion, categoria))) {
         throw new Error('INVALID_EXPENSE_DATA');
     }
-    const result = yield db_1.pool.query(`INSERT INTO public.gastos (usuario_id, fecha, descripcion, lugar, categoria, tipo, monto, moneda, total_deuda)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-         RETURNING id, fecha, descripcion, lugar, categoria, tipo, monto, moneda, total_deuda`, [usuarioId, fecha, descripcion, lugar, categoria, tipo, monto, moneda, totalDeuda]);
-    return Object.assign(Object.assign({}, result.rows[0]), { monto: Number(result.rows[0].monto), total_deuda: result.rows[0].total_deuda === null ? null : Number(result.rows[0].total_deuda) });
+    const client = yield db_1.pool.connect();
+    try {
+        yield client.query('BEGIN');
+        yield client.query('SELECT pg_advisory_xact_lock($1)', [usuarioId]);
+        const available = yield client.query(`SELECT COALESCE((SELECT SUM(${(0, money_1.convertMoneySql)('monto', 'moneda')}) FROM ingresos WHERE usuario_id = $1), 0)
+                                - COALESCE((SELECT SUM(${(0, money_1.convertMoneySql)('monto', 'moneda')}) FROM gastos WHERE usuario_id = $1), 0) AS disponible`, [usuarioId]);
+        const newExpense = yield client.query(`SELECT $1::numeric * CASE WHEN $2::text = 'USD' THEN 7.68::numeric ELSE 1::numeric END AS monto`, [monto, moneda]);
+        if (available.rows[0].disponible < newExpense.rows[0].monto)
+            throw new Error('INSUFFICIENT_FUNDS');
+        const result = yield client.query(`INSERT INTO public.gastos (usuario_id, fecha, descripcion, lugar, categoria, tipo, monto, moneda, total_deuda)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7::numeric, $8, $9::numeric)
+                 RETURNING id, fecha, descripcion, lugar, categoria, tipo, monto::text, moneda, total_deuda::text`, [usuarioId, fecha, descripcion, lugar, categoria, tipo, monto, moneda, totalDeuda]);
+        yield client.query('COMMIT');
+        return Object.assign(Object.assign({}, result.rows[0]), { monto: String(result.rows[0].monto), total_deuda: result.rows[0].total_deuda === null ? null : String(result.rows[0].total_deuda) });
+    }
+    catch (error) {
+        yield client.query('ROLLBACK');
+        throw error;
+    }
+    finally {
+        client.release();
+    }
 });
 exports.saveExpense = saveExpense;
 const updateExpense = (usuarioId, id, data) => __awaiter(void 0, void 0, void 0, function* () {
@@ -56,20 +75,38 @@ const updateExpense = (usuarioId, id, data) => __awaiter(void 0, void 0, void 0,
     const categoria = String((data === null || data === void 0 ? void 0 : data.categoria) || '').trim();
     const tipo = String((data === null || data === void 0 ? void 0 : data.tipo) || 'VARIABLE').trim().toUpperCase();
     const moneda = String((data === null || data === void 0 ? void 0 : data.moneda) || 'GTQ').trim().toUpperCase();
-    const monto = Number(data === null || data === void 0 ? void 0 : data.monto);
+    const monto = (0, money_1.parseMoney)(data === null || data === void 0 ? void 0 : data.monto);
     const esDeuda = categoria.toUpperCase() === 'DEUDA';
-    const totalDeuda = esDeuda && (data === null || data === void 0 ? void 0 : data.total_deuda) !== '' && (data === null || data === void 0 ? void 0 : data.total_deuda) !== undefined && (data === null || data === void 0 ? void 0 : data.total_deuda) !== null ? Number(data.total_deuda) : null;
-    if (!fecha || !descripcion || !categoria || !['FIJO', 'VARIABLE'].includes(tipo) || !['GTQ', 'USD'].includes(moneda) || !Number.isFinite(monto) || monto <= 0 || (totalDeuda !== null && (!Number.isFinite(totalDeuda) || totalDeuda < 0)))
+    const totalDeuda = esDeuda && (data === null || data === void 0 ? void 0 : data.total_deuda) !== '' && (data === null || data === void 0 ? void 0 : data.total_deuda) !== undefined && (data === null || data === void 0 ? void 0 : data.total_deuda) !== null ? (0, money_1.parseMoney)(data.total_deuda, true) : null;
+    if (!fecha || !descripcion || !categoria || !['FIJO', 'VARIABLE'].includes(tipo) || !['GTQ', 'USD'].includes(moneda) || !monto || ((data === null || data === void 0 ? void 0 : data.total_deuda) !== '' && (data === null || data === void 0 ? void 0 : data.total_deuda) !== undefined && (data === null || data === void 0 ? void 0 : data.total_deuda) !== null && !totalDeuda))
         throw new Error('INVALID_EXPENSE_DATA');
     if (esDeuda && totalDeuda === null && !(yield existeTotalDeuda(usuarioId, descripcion, categoria, id)))
         throw new Error('INVALID_EXPENSE_DATA');
-    const result = yield db_1.pool.query(`UPDATE public.gastos
-            SET fecha = $1, descripcion = $2, lugar = $3, categoria = $4, tipo = $5, monto = $6, moneda = $7, total_deuda = $8
-            WHERE id = $9 AND usuario_id = $10
-            RETURNING id, fecha, descripcion, lugar, categoria, tipo, monto, moneda, total_deuda`, [fecha, descripcion, lugar, categoria, tipo, monto, moneda, totalDeuda, id, usuarioId]);
-    if (!result.rowCount)
-        throw new Error('EXPENSE_NOT_FOUND');
-    return Object.assign(Object.assign({}, result.rows[0]), { monto: Number(result.rows[0].monto), total_deuda: result.rows[0].total_deuda === null ? null : Number(result.rows[0].total_deuda) });
+    const client = yield db_1.pool.connect();
+    try {
+        yield client.query('BEGIN');
+        yield client.query('SELECT pg_advisory_xact_lock($1)', [usuarioId]);
+        const available = yield client.query(`SELECT COALESCE((SELECT SUM(${(0, money_1.convertMoneySql)('monto', 'moneda')}) FROM ingresos WHERE usuario_id = $1), 0)
+                                - COALESCE((SELECT SUM(${(0, money_1.convertMoneySql)('monto', 'moneda')}) FROM gastos WHERE usuario_id = $1 AND id <> $2), 0) AS disponible`, [usuarioId, id]);
+        const newExpense = yield client.query(`SELECT $1::numeric * CASE WHEN $2::text = 'USD' THEN 7.68::numeric ELSE 1::numeric END AS monto`, [monto, moneda]);
+        if (available.rows[0].disponible < newExpense.rows[0].monto)
+            throw new Error('INSUFFICIENT_FUNDS');
+        const result = yield client.query(`UPDATE public.gastos
+                        SET fecha = $1, descripcion = $2, lugar = $3, categoria = $4, tipo = $5, monto = $6::numeric, moneda = $7, total_deuda = $8::numeric
+                        WHERE id = $9 AND usuario_id = $10
+                        RETURNING id, fecha, descripcion, lugar, categoria, tipo, monto::text, moneda, total_deuda::text`, [fecha, descripcion, lugar, categoria, tipo, monto, moneda, totalDeuda, id, usuarioId]);
+        if (!result.rowCount)
+            throw new Error('EXPENSE_NOT_FOUND');
+        yield client.query('COMMIT');
+        return Object.assign(Object.assign({}, result.rows[0]), { monto: String(result.rows[0].monto), total_deuda: result.rows[0].total_deuda === null ? null : String(result.rows[0].total_deuda) });
+    }
+    catch (error) {
+        yield client.query('ROLLBACK');
+        throw error;
+    }
+    finally {
+        client.release();
+    }
 });
 exports.updateExpense = updateExpense;
 const deleteExpense = (usuarioId, id) => __awaiter(void 0, void 0, void 0, function* () {

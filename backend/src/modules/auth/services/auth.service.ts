@@ -5,6 +5,39 @@ import { generateToken } from '../../../util/jwt';
 
 const googleClient = new OAuth2Client();
 const SESSION_IDLE_MINUTES = 3;
+const MAX_PROFILE_IMAGE_LENGTH = 3_000_000;
+
+// Normaliza la foto del usuario para que solo se almacenen imágenes reales y seguras.
+// Se aceptan URLs HTTPS y fotos en base64 de tipo imagen, pero se rechazan entradas vacías
+// o demasiado grandes para evitar corrupción en la base de datos o fallos visuales en la UI.
+function normalizarFoto(value: unknown): string | null {
+    const foto = String(value || '').trim();
+    if (!foto) return null;
+    if (foto.length > MAX_PROFILE_IMAGE_LENGTH) throw new Error('INVALID_PROFILE_PHOTO');
+    if (/^data:image\/(png|jpeg|jpg|webp|gif);base64,[a-z0-9+/=]+$/i.test(foto)) return foto;
+
+    try {
+        const url = new URL(foto);
+        if (url.protocol !== 'https:') throw new Error('INVALID_PROFILE_PHOTO');
+        return url.toString();
+    } catch {
+        throw new Error('INVALID_PROFILE_PHOTO');
+    }
+}
+
+// Valida la imagen recibida desde Google antes de aceptarla como foto principal.
+// La diferencia con normalizarFoto es que este helper no lanza errores: devuelve null
+// cuando la URL no es válida, permitiendo que el sistema mantenga la foto anterior si existe.
+    function fotoGoogleValida(value: unknown): string | null {
+        const foto = String(value || '').trim();
+        if (!foto || foto.length > MAX_PROFILE_IMAGE_LENGTH) return null;
+        try {
+            const url = new URL(foto);
+            return url.protocol === 'https:' ? url.toString() : null;
+        } catch {
+            return null;
+        }
+    }
 
 function googleClientId(): string | null {
     const value = process.env.GOOGLE_CLIENT_ID?.trim();
@@ -39,6 +72,9 @@ function normalizarGenero(value: unknown): 'FEMENINO' | 'MASCULINO' | null {
 }
 
 export class AuthService {
+    // Devuelve el perfil completo del usuario autenticado con sus datos principales.
+    // Se usa tanto para poblar la pantalla de perfil como para sincronizar datos
+    // con el frontend sin duplicar la lógica de negocio.
     static async getProfile(userId: number) {
         const result = await pool.query(
             `SELECT id, usuario, correo, nombre, apellido,
@@ -51,7 +87,7 @@ export class AuthService {
                         WHEN 'M' THEN 'MASCULINO'
                         ELSE NULL
                     END AS genero,
-                    foto_url, auth_provider, moneda, tema, rol
+                    foto_url, foto_origen, auth_provider, moneda, tema, rol
              FROM public.usuarios WHERE id = $1`,
             [userId]
         );
@@ -59,9 +95,12 @@ export class AuthService {
         return result.rows[0];
     }
 
+    // Actualiza los datos editables del usuario sin romper la estructura ya existente.
+    // Si el payload trae una foto nueva, se valida y se marca como manual; si no trae cambios,
+    // conserva la información previa del registro para evitar pérdida de datos.
     static async updateProfile(userId: number, data: any) {
         const current = await pool.query(
-            `SELECT nombre, apellido, genero, foto_url, moneda, tema
+            `SELECT nombre, apellido, genero, foto_url, foto_origen, moneda, tema
              FROM public.usuarios WHERE id = $1`,
             [userId]
         );
@@ -73,7 +112,8 @@ export class AuthService {
         const apellido = has('apellido') ? String(data.apellido || '').trim() || null : saved.apellido;
         const genero = has('genero') ? normalizarGenero(data.genero) : saved.genero;
         if (has('genero') && !genero) throw new Error('INVALID_GENDER');
-        const fotoUrl = has('foto_url') ? String(data.foto_url || '').trim() || null : saved.foto_url;
+        const fotoUrl = has('foto_url') ? normalizarFoto(data.foto_url) : saved.foto_url;
+        const fotoOrigen = has('foto_url') ? (fotoUrl ? 'MANUAL' : 'NONE') : saved.foto_origen;
         const moneda = has('moneda') && ['GTQ', 'USD'].includes(String(data.moneda || '').toUpperCase())
             ? String(data.moneda).toUpperCase()
             : saved.moneda;
@@ -81,15 +121,18 @@ export class AuthService {
             ? String(data.tema).toUpperCase()
             : saved.tema;
         const result = await pool.query(
-            `UPDATE public.usuarios SET nombre = $1, apellido = $2, genero = $3, foto_url = $4, moneda = $5, tema = $6
-             WHERE id = $7
-             RETURNING id, usuario, correo, nombre, apellido, genero, foto_url, auth_provider, moneda, tema, rol`,
-            [nombre, apellido, genero, fotoUrl, moneda, tema, userId]
+            `UPDATE public.usuarios SET nombre = $1, apellido = $2, genero = $3, foto_url = $4, foto_origen = $5, moneda = $6, tema = $7
+             WHERE id = $8
+             RETURNING id, usuario, correo, nombre, apellido, genero, foto_url, foto_origen, auth_provider, moneda, tema, rol`,
+            [nombre, apellido, genero, fotoUrl, fotoOrigen, moneda, tema, userId]
         );
         if (!result.rowCount) throw new Error('USER_NOT_FOUND');
         return result.rows[0];
     }
 
+    // Inicia sesión con correo o usuario local y valida la contraseña con bcrypt.
+    // Después actualiza la sesión para mantener un seguimiento del último acceso y
+    // devolver un JWT con los datos mínimos necesarios para la app.
     static async login(loginValue: string, passwordInput: string): Promise<{ token: string; rol: string }> {
         const cleanLogin = loginValue?.trim();
         const cleanPassword = passwordInput?.trim();
@@ -144,6 +187,9 @@ export class AuthService {
         };
     }
 
+    // Login con Google: valida el token de Google, identifica al usuario y sincroniza
+    // los datos del perfil con la base de datos. La lógica de foto se protege para no
+    // sobrescribir una imagen manual existente cuando el usuario entra por Google.
     static async loginWithGoogle(credential: string): Promise<{ token: string; rol: string }> {
         const clientId = googleClientId();
         if (!googleAuthEnabled() || !clientId) throw new Error('GOOGLE_AUTH_DISABLED');
@@ -166,12 +212,12 @@ export class AuthService {
         }
 
         const byGoogleSub = await pool.query(
-            `SELECT id, usuario, correo, nombre, apellido, genero, foto_url, rol, session_version, google_sub
+            `SELECT id, usuario, correo, nombre, apellido, genero, foto_url, foto_origen, rol, session_version, google_sub
              FROM public.usuarios WHERE google_sub = $1 LIMIT 1`,
             [payload.sub]
         );
         const byEmail = byGoogleSub.rows[0] ? null : await pool.query(
-            `SELECT id, usuario, correo, nombre, apellido, genero, foto_url, rol, session_version, google_sub
+            `SELECT id, usuario, correo, nombre, apellido, genero, foto_url, foto_origen, rol, session_version, google_sub
              FROM public.usuarios WHERE LOWER(correo) = LOWER($1) LIMIT 1`,
             [payload.email]
         );
@@ -181,15 +227,20 @@ export class AuthService {
             throw new Error('GOOGLE_ACCOUNT_CONFLICT');
         }
         if (user) {
+            const googlePicture = fotoGoogleValida(payload.picture);
+            const storedPicture = googlePicture || (user.foto_origen === 'GOOGLE' ? user.foto_url : null);
             await pool.query(
                 `UPDATE public.usuarios
-                 SET google_sub = $1, nombre = $2, apellido = $3, foto_url = $4,
+                 SET google_sub = $1, nombre = COALESCE(nombre, $2), apellido = COALESCE(apellido, $3),
+                     foto_url = CASE WHEN foto_origen = 'MANUAL' THEN foto_url ELSE $4 END,
+                     foto_origen = CASE WHEN foto_origen = 'MANUAL' THEN 'MANUAL' WHEN $4::text IS NOT NULL THEN 'GOOGLE' ELSE 'NONE' END,
                      auth_provider = CASE WHEN password IS NULL THEN 'GOOGLE' ELSE auth_provider END,
                      last_activity = CURRENT_TIMESTAMP, last_login = CURRENT_TIMESTAMP
                  WHERE id = $5`,
-                [payload.sub, payload.given_name || null, payload.family_name || null, payload.picture || user.foto_url || null, user.id]
+                [payload.sub, payload.given_name || null, payload.family_name || null, storedPicture, user.id]
             );
         } else {
+            const googlePicture = fotoGoogleValida(payload.picture);
             const baseUsername = (payload.email.split('@')[0] || 'googleuser')
                 .toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 80) || 'googleuser';
             let username = baseUsername;
@@ -200,10 +251,10 @@ export class AuthService {
 
             const created = await pool.query(
                 `INSERT INTO public.usuarios
-                 (usuario, correo, password, auth_provider, google_sub, nombre, apellido, foto_url, rol, last_activity, last_login)
-                 VALUES ($1, $2, NULL, 'GOOGLE', $3, $4, $5, $6, 'USUARIO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-                 RETURNING id, usuario, correo, nombre, apellido, genero, foto_url, rol, session_version`,
-                [username, payload.email, payload.sub, payload.given_name || null, payload.family_name || null, payload.picture || null]
+                (usuario, correo, password, auth_provider, google_sub, nombre, apellido, foto_url, foto_origen, rol, last_activity, last_login)
+                 VALUES ($1, $2, NULL, 'GOOGLE', $3, $4, $5, $6, CASE WHEN $6::text IS NULL THEN 'NONE' ELSE 'GOOGLE' END, 'USUARIO', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                 RETURNING id, usuario, correo, nombre, apellido, genero, foto_url, foto_origen, rol, session_version`,
+                [username, payload.email, payload.sub, payload.given_name || null, payload.family_name || null, googlePicture]
             );
             user = created.rows[0];
         }

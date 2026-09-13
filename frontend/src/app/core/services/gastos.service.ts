@@ -11,9 +11,9 @@ export interface GastoData {
   lugar?: string | null;
   categoria: string;
   tipo: 'FIJO' | 'VARIABLE';
-  monto: number;
+  monto: string;
   moneda: 'GTQ' | 'USD';
-  total_deuda?: number | null;
+  total_deuda?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })

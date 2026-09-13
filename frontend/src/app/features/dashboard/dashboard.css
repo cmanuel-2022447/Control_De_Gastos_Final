@@ -52,6 +52,7 @@
 .quick-search { position: absolute; top: 50%; left: 55%; transform: translate(-50%, -50%); }
 .quick-search input { width: 430px; height: 50px; border: 1px solid #b8c5d4; border-radius: 999px; padding: 11px 54px 11px 20px; color: #334155; background: #f8fafc; font: inherit; font-size: .92rem; outline: none; box-shadow: 0 5px 14px rgba(15,23,42,.08); }
 .search-icon { position: absolute; top: 50%; right: 18px; width: 22px; height: 22px; object-fit: contain; pointer-events: none; transform: translateY(-50%); }
+:host-context(.dark-mode) .search-icon { filter: brightness(0) invert(1); }
 .quick-search input:focus { border-color: #134074; box-shadow: 0 0 0 4px rgba(19,64,116,.12); }
 .search-results { position: absolute; z-index: 8; top: calc(100% + 8px); right: 0; width: 260px; border: 1px solid #cbd5e1; border-radius: 12px; padding: 8px; background: #fff; box-shadow: 0 14px 30px rgba(15,23,42,.16); }
 .search-results p, .search-results button { display: block; width: 100%; margin: 0; border: 0; border-radius: 8px; padding: 9px; color: #64748b; background: transparent; font: inherit; font-size: .78rem; text-align: left; }

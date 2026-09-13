@@ -11,8 +11,8 @@ export interface IngresoData {
   lugar: string;
   moneda: 'GTQ' | 'USD';
   monedaDestino: 'GTQ' | 'USD';
-  monto: number;
-  montoQuetzales: number;
+  monto: string;
+  montoQuetzales: string;
   original?: string;
   conversion?: string;
 }
@@ -135,9 +135,9 @@ export class IngresosService {
       const conversionParsed = this.parseMonedaMonto(conversion);
       const monedaOriginal = (originalParsed.moneda as 'GTQ' | 'USD') || 'GTQ';
       const monedaDestino = (conversionParsed.moneda as 'GTQ' | 'USD') || (monedaOriginal === 'USD' ? 'GTQ' : 'USD');
-      const montoOriginal = Number(originalParsed.monto || 0);
-      const montoConvertido = Number(conversionParsed.monto || 0);
-      const montoQuetzales = monedaOriginal === 'USD' ? montoOriginal * 7.68 : montoOriginal;
+      const montoOriginal = String(ingreso.monto ?? originalParsed.monto ?? '0');
+      const montoConvertido = String(conversionParsed.monto || 0);
+      const montoQuetzales = monedaOriginal === 'USD' ? String(Number(montoOriginal) * 7.68) : montoOriginal;
 
       return {
         id: ingreso.id,
@@ -172,14 +172,15 @@ export class IngresosService {
    */
   private prepararPayload(ingreso: any): any {
     const tasaCambio = 7.68;
-    const monto = Number(ingreso.monto) || 0;
+    const monto = String(ingreso.monto ?? '').trim();
     const origen = String(ingreso.moneda || 'GTQ').trim().toUpperCase();
     const destino = String(ingreso.monedaDestino || (origen === 'USD' ? 'GTQ' : 'USD')).trim().toUpperCase();
+    const montoNumerico = Number(monto);
     const montoConvertido = origen === destino
       ? monto
       : origen === 'USD' && destino === 'GTQ'
-        ? monto * tasaCambio
-        : monto / tasaCambio;
+        ? montoNumerico * tasaCambio
+        : montoNumerico / tasaCambio;
 
     return {
       ...ingreso,
@@ -188,8 +189,8 @@ export class IngresosService {
       monedaDestino: destino,
       monto,
       tasa_cambio: tasaCambio,
-      original: `${origen} ${monto.toFixed(2)}`,
-      conversion: `${destino} ${montoConvertido.toFixed(2)}`
+      original: `${origen} ${monto}`,
+      conversion: `${destino} ${montoConvertido}`
     };
   }
 }

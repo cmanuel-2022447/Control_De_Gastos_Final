@@ -1,3 +1,7 @@
+// Middleware central de autenticación y manejo de errores HTTP.
+// Aquí se valida el JWT entrante y se distinguen casos como token faltante,
+// expirado, inválido o sesión inactiva. También centraliza respuestas de error.
+
 import { NextFunction, Request, Response } from 'express';
 import { verifyToken } from '../util/jwt';
 import { AuthService } from '../modules/auth/services/auth.service';

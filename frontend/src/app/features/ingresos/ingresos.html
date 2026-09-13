@@ -10,14 +10,14 @@
 		</div>
 
 		<div class="income-summary" id="resumen-ingresos">
-			<article><span>Total registrado</span><strong>Q {{ totalQuetzales | number:'1.2-2' }}</strong><small>Conversión aplicada a toda la tabla</small></article>
+			<article><span>Total registrado</span><strong>{{ simboloMoneda }} {{ (moneda === 'USD' ? totalQuetzales / tasaCambio : totalQuetzales) | number:'1.0-3' }}</strong><small>Conversión aplicada a toda la tabla</small></article>
 			<article><span>Registros</span><strong>{{ ingresos.length }}</strong><small>Ingresos guardados</small></article>
-			<label><span>Tasa de cambio</span><strong>1 USD = Q {{ tasaCambio | number:'1.2-2' }}</strong><small>Referencia de conversión</small></label>
+			<label><span>Tasa de cambio</span><strong>1 USD = Q {{ tasaCambio }}</strong><small>Referencia de conversión</small></label>
 		</div>
 
 		<section class="income-table-card" id="historial-ingresos">
 			<div class="table-toolbar">
-				<div><h2>Historial de ingresos</h2><p>Los valores en dólares se muestran también en quetzales.</p></div>
+				<div><h2>Historial de ingresos</h2><p>Todos los valores respetan la moneda configurada en el perfil.</p></div>
 			</div>
 			<div class="table-scroll">
 				<table>
@@ -25,8 +25,8 @@
 					<tbody>
 						<tr *ngFor="let ingreso of ingresosFiltrados" [id]="'ingreso-row-' + ingreso.id">
 							<td>{{ ingreso.fecha }}</td><td><strong>{{ ingreso.descripcion }}</strong></td><td>{{ ingreso.lugar }}</td>
-							<td><span class="currency-badge" [class.usd]="ingreso.moneda === 'USD'">{{ ingreso.moneda }} {{ ingreso.monto | number:'1.2-2' }}</span></td>
-							<td class="converted">{{ ingreso.monedaDestino || ingreso.moneda }} {{ obtenerMontoConvertido(ingreso) | number:'1.2-2' }}</td>
+							<td><span class="currency-badge" [class.usd]="moneda === 'USD'">{{ simboloMoneda }} {{ convertirIngreso(ingreso) | number:'1.0-3' }}</span></td>
+							<td class="converted">{{ simboloMoneda }} {{ convertirIngreso(ingreso) | number:'1.0-3' }}</td>
 							<td class="row-actions"><button type="button" (click)="editarIngreso(ingreso)" aria-label="Editar ingreso">Editar</button><button type="button" (click)="eliminarIngreso(ingreso.id)" aria-label="Eliminar ingreso">Eliminar</button></td>
 						</tr>
 						<tr *ngIf="!ingresosFiltrados.length"><td class="empty-row" colspan="6">No hay ingresos que coincidan con la búsqueda.</td></tr>
@@ -62,12 +62,12 @@
 					<div class="amount-field-row">
 						<label class="amount-label">Monto
 							<div class="input-with-unit">
-								<input type="number" appStrictInput="decimal" inputmode="decimal" min="0.01" step="0.01" name="monto" [(ngModel)]="nuevoIngreso.monto" placeholder="Ej. 125.50" required />
+								<input type="text" appStrictInput="decimal" inputmode="decimal" min="0.001" name="monto" [(ngModel)]="nuevoIngreso.monto" placeholder="Ej. 125.500" required />
 							</div>
 						</label>
 						<div class="conversion-box">
 							<span>Valor convertido</span>
-							<strong>{{ nuevoIngreso.monedaDestino }} {{ montoConvertido | number:'1.2-2' }}</strong>
+							<strong>{{ nuevoIngreso.monedaDestino }} {{ montoConvertido }}</strong>
 							<small>{{ tasaReferencia }}</small>
 						</div>
 					</div>
@@ -75,6 +75,6 @@
 				</form>
 			</section>
 		</div>
-		<p *ngIf="errorMessage" class="form-error" role="alert">{{ errorMessage }}</p>
+		<p *ngIf="errorMessage" class="floating-notification floating-notification-error" role="alert">{{ errorMessage }}</p>
 	</section>
 </app-shell>

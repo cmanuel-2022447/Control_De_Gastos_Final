@@ -39,9 +39,11 @@ const createExpense = (req, res) => __awaiter(void 0, void 0, void 0, function* 
     }
     catch (error) {
         if (error instanceof Error && error.message === 'INVALID_EXPENSE_DATA') {
-            res.status(400).json({ message: 'Los datos del gasto no son válidos' });
+            res.status(400).json({ message: 'Los datos del gasto no son válidos. El monto admite máximo 3 decimales.' });
             return;
         }
+        if (error instanceof Error && error.message === 'INSUFFICIENT_FUNDS')
+            return res.status(400).json({ message: 'No puedes registrar este gasto porque supera el dinero disponible.' });
         res.status(500).json({ message: 'Error al guardar el dato' });
     }
 });
@@ -58,7 +60,9 @@ const editExpense = (req, res) => __awaiter(void 0, void 0, void 0, function* ()
         if (error instanceof Error && error.message === 'EXPENSE_NOT_FOUND')
             return res.status(404).json({ message: 'Gasto no encontrado' });
         if (error instanceof Error && error.message === 'INVALID_EXPENSE_DATA')
-            return res.status(400).json({ message: 'Los datos del gasto no son válidos' });
+            return res.status(400).json({ message: 'Los datos del gasto no son válidos. El monto admite máximo 3 decimales.' });
+        if (error instanceof Error && error.message === 'INSUFFICIENT_FUNDS')
+            return res.status(400).json({ message: 'No puedes registrar este gasto porque supera el dinero disponible.' });
         return res.status(500).json({ message: 'Error al actualizar el gasto' });
     }
 });
